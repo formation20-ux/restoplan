@@ -7,7 +7,7 @@
 "theme_color": "#2d2822",
 "icons": [
 {
-"src": "https://formation20-ux.github.io/restoplan/icon.png",
+"src": "icon.png",
 "sizes": "512x512",
 "type": "image/png"
 }
