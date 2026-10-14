@@ -38,24 +38,21 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-        // --- CONFIGURATION FIREBASE ---
-        // RAPPEL IMPORTANT : Si vous utilisez cette application sur votre propre hébergement (GitHub Pages),
-        // vous devrez remplacer ces variables par VOS propres identifiants Firebase.
-        // Dans cet environnement de test, j'utilise les variables d'environnement globales.
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            // apiKey: "VOTRE_API_KEY",
-            // authDomain: "votre-projet.firebaseapp.com",
-            // projectId: "votre-projet",
-            // storageBucket: "votre-projet.appspot.com",
-            // messagingSenderId: "...",
-            // appId: "..."
+        // VOS CLÉS FIREBASE (Mises à jour)
+        const firebaseConfig = {
+          apiKey: "AIzaSyB8VqGEdm5xpSiM1CTadsbN6ZDUVMg7OEM",
+          authDomain: "restoplanmjo.firebaseapp.com",
+          projectId: "restoplanmjo",
+          storageBucket: "restoplanmjo.firebasestorage.app",
+          messagingSenderId: "77400415439",
+          appId: "1:77400415439:web:bee9c8651f0acf23c6ebba",
+          measurementId: "G-RGSEJPZJMJ"
         };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'restoplan-default';
 
         // Initialisation de Firebase Compat
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        const auth = firebase.auth();
 
         const TOOLS = {
             PAN: { id: 'pan', name: 'Déplacer', icon: 'fas fa-hand', color: 'bg-transparent' },
@@ -81,15 +78,13 @@
                 floors: [{ id: 'f1', name: 'RDC', order: 0, cols: 30, rows: 20 }],
                 cells: {}, 
                 zones: [
-                    { id: 'z1', name: 'Salle', color: '#e8c9a5' },
-                    { id: 'z2', name: 'Comptoir', color: '#a5d6cd' }
+                    { id: 'z1', name: 'Salle', color: '#e8c9a5' }
                 ], 
                 startPos: null
             };
         };
 
         function App() {
-            const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
             const [mode, setMode] = useState('edit'); 
             
@@ -149,7 +144,6 @@
                             const rows = floor.rows || layout.rows || 15;
                             const rw = rotation === 90 || rotation === 270 ? rows : cols;
                             const rh = rotation === 90 || rotation === 270 ? cols : rows;
-                            // Calcul de l'échelle pour que le plan tienne toujours dans le conteneur
                             const scaleX = clientWidth / (rw * 40);
                             const scaleY = clientHeight / (rh * 40);
                             setBaseScale(Math.min(scaleX, scaleY) * 0.95);
@@ -166,48 +160,15 @@
                 };
             }, [layout.floors, currentFloorId, layout.cols, layout.rows, rotation]);
 
-            // Initialisation Auth Firebase
-            useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            // On tente de s'authentifier avec un token externe (si fourni par l'environnement)
-                            // Note: la méthode varie légèrement entre les SDK Modulaires (v9+) et Compat (v8)
-                            // Ici on tente la méthode Compat.
-                            try {
-                                await auth.signInWithCustomToken(__initial_auth_token);
-                            } catch (e) {
-                                console.log("Custom token failed, falling back to anonymous", e);
-                                await auth.signInAnonymously();
-                            }
-                        } else {
-                            await auth.signInAnonymously();
-                        }
-                    } catch (error) {
-                        console.error("Auth error:", error);
-                        // Même en cas d'erreur d'auth, on arrête le chargement
-                        setLoading(false);
-                    }
-                };
-                initAuth();
-                
-                const unsubscribe = auth.onAuthStateChanged((u) => {
-                    setUser(u);
-                    if (!u) setLoading(false);
-                });
-                return () => unsubscribe();
-            }, []);
-
             // Chargement depuis Firebase (Écoute en temps réel)
             useEffect(() => {
-                // Chemin strict requis par les règles de sécurité
+                // Pas besoin de vérifier le "user" avec les règles ouvertes
                 const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('restaurant').doc('layout');
                 
                 const unsub = docRef.onSnapshot((docSnap) => {
                     if (docSnap.exists) {
                         const data = docSnap.data();
                         if (!data.cells || Object.keys(data.cells).length === 0) {
-                            // Si le document est quasi vide, on force un layout vierge structuré
                             const emptyLayout = generateEmptyLayout();
                             setLayout(emptyLayout);
                             docRef.set(emptyLayout).catch(e => console.error("Error setting initial layout", e));
@@ -218,7 +179,6 @@
                             }
                         }
                     } else {
-                        // Si le document n'existe pas, on crée un plan vierge
                         const emptyLayout = generateEmptyLayout();
                         setLayout(emptyLayout);
                         docRef.set(emptyLayout).catch(e => console.error("Error creating initial document", e));
