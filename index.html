@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
+    <meta name="format-detection" content="telephone=no">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- Balises Apple Web App (Pour l'iPhone) -->
+    <title>DigiSAT - Salle</title>
+    
+    <!-- Icône pour iPhone / iPad (iOS) -->
+    <link rel="apple-touch-icon" href="icon.png">
+    <!-- Icône pour Android & Navigateurs Web -->
+    <link rel="icon" type="image/png" href="icon.png">
+    
+    <!-- Balises Apple Web App -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="DigiSAT">
     
-    <title>DigiSAT - Salle</title>
-    
-    <!-- FIX : Chemins relatifs explicites pour les icônes -->
-    <link rel="apple-touch-icon" href="./icon.png">
-    <link rel="icon" type="image/png" href="./icon.png">
-    <link rel="manifest" href="./manifest.json">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2d2822">
 
-    <!-- Police "Inter" (Identique à votre autre application) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -36,19 +38,15 @@
         }
     </script>
     
-    <!-- FontAwesome (Icônes) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- React & ReactDOM (Logique) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Babel (Traducteur de code React pour le navigateur) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- FIREBASE (Imports CDN pour fichier unique) -->
+    <!-- FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
     <style>
         body { touch-action: none; overscroll-behavior: none; }
@@ -65,7 +63,6 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-        // VOS CLÉS FIREBASE
         const firebaseConfig = {
           apiKey: "AIzaSyB8VqGEdm5xpSiM1CTadsbN6ZDUVMg7OEM",
           authDomain: "restoplanmjo.firebaseapp.com",
@@ -75,12 +72,12 @@
           appId: "1:77400415439:web:bee9c8651f0acf23c6ebba",
           measurementId: "G-RGSEJPZJMJ"
         };
-        
         const appId = 'restoplan-default';
 
-        // Initialisation de Firebase
-        firebase.initializeApp(firebaseConfig);
+        // Initialisation de Firebase Compat
+        const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
 
         const TOOLS = {
             PAN: { id: 'pan', name: 'Déplacer', icon: 'fas fa-hand', color: 'bg-transparent' },
@@ -101,13 +98,10 @@
 
         const generateEmptyLayout = () => {
             return {
-                cols: 30, 
-                rows: 20,
+                cols: 30, rows: 20,
                 floors: [{ id: 'f1', name: 'RDC', order: 0, cols: 30, rows: 20 }],
                 cells: {}, 
-                zones: [
-                    { id: 'z1', name: 'Salle', color: '#e8c9a5' }
-                ], 
+                zones: [{ id: 'z1', name: 'Salle', color: '#e8c9a5' }], 
                 startPos: null
             };
         };
@@ -115,7 +109,6 @@
         function App() {
             const [loading, setLoading] = useState(true);
             const [mode, setMode] = useState('edit'); 
-            
             const [layout, setLayout] = useState(generateEmptyLayout());
 
             const [currentFloorId, setCurrentFloorId] = useState('f1');
@@ -161,7 +154,6 @@
                 }
             }, [drawError]);
 
-            // Gestion du zoom centré et dynamique
             useEffect(() => {
                 const updateScale = () => {
                     if (mapContainerRef.current) {
@@ -178,17 +170,13 @@
                         }
                     }
                 };
-                
                 updateScale();
                 window.addEventListener('resize', updateScale);
                 const t = setTimeout(updateScale, 150); 
-                return () => {
-                    window.removeEventListener('resize', updateScale);
-                    clearTimeout(t);
-                };
+                return () => { window.removeEventListener('resize', updateScale); clearTimeout(t); };
             }, [layout.floors, currentFloorId, layout.cols, layout.rows, rotation]);
 
-            // Chargement depuis Firebase (Écoute en temps réel)
+            // Plus de blocage d'authentification ici, connexion directe à la base ouverte !
             useEffect(() => {
                 const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('restaurant').doc('layout');
                 const unsub = docRef.onSnapshot((docSnap) => {
@@ -217,7 +205,6 @@
                 return () => unsub();
             }, []);
 
-            // Sauvegarde vers Firebase directe
             const saveLayout = useCallback((newLayout) => {
                 setLayout(newLayout);
                 if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -225,9 +212,7 @@
                     try {
                         const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('restaurant').doc('layout');
                         await docRef.set(newLayout);
-                    } catch (error) {
-                        console.error("Save error:", error);
-                    }
+                    } catch (error) { console.error("Save error:", error); }
                 }, 500);
             }, []);
 
@@ -315,16 +300,9 @@
                 if(!newFloorName.trim()) return;
                 setLayout(prev => {
                     const currentFloor = prev.floors.find(f => f.id === currentFloorId) || prev.floors[0];
-                    const newFloor = {
-                        id: `f${Date.now()}`,
-                        name: newFloorName,
-                        order: prev.floors.length,
-                        cols: currentFloor.cols || prev.cols || 25,
-                        rows: currentFloor.rows || prev.rows || 15
-                    };
+                    const newFloor = { id: `f${Date.now()}`, name: newFloorName, order: prev.floors.length, cols: currentFloor.cols || prev.cols || 25, rows: currentFloor.rows || prev.rows || 15 };
                     const next = { ...prev, floors: [...prev.floors, newFloor] };
-                    saveLayout(next);
-                    return next;
+                    saveLayout(next); return next;
                 });
                 setNewFloorName('');
             };
@@ -335,22 +313,15 @@
                     const newFloors = prev.floors.filter(f => f.id !== id);
                     const newCells = Object.fromEntries(Object.entries(prev.cells).filter(([k]) => !k.startsWith(`${id}:`)));
                     const next = { ...prev, floors: newFloors, cells: newCells };
-                    saveLayout(next);
-                    return next;
+                    saveLayout(next); return next;
                 });
-                if (currentFloorId === id) {
-                    setCurrentFloorId(layout.floors.filter(f => f.id !== id)[0].id);
-                }
+                if (currentFloorId === id) { setCurrentFloorId(layout.floors.filter(f => f.id !== id)[0].id); }
             };
 
             const handleRenameFloor = (id, newName) => {
                 setLayout(prev => {
-                    const next = {
-                        ...prev,
-                        floors: prev.floors.map(f => f.id === id ? {...f, name: newName} : f)
-                    };
-                    saveLayout(next);
-                    return next;
+                    const next = { ...prev, floors: prev.floors.map(f => f.id === id ? {...f, name: newName} : f) };
+                    saveLayout(next); return next;
                 });
             };
 
@@ -370,7 +341,6 @@
                         const newCells = { ...prevLayout.cells };
                         const q = [{x, y}];
                         const visited = new Set([`${x}:${y}`]);
-                        
                         const currentFloorLayout = prevLayout.floors.find(f => f.id === floorId);
                         const maxCols = currentFloorLayout?.cols || prevLayout.cols || 25;
                         const maxRows = currentFloorLayout?.rows || prevLayout.rows || 15;
@@ -379,24 +349,16 @@
                             const curr = q.shift();
                             const key = `${floorId}:${curr.x}:${curr.y}`;
                             const cell = newCells[key] || {};
-                            
                             newCells[key] = { ...cell, zoneId: selectedZoneId };
 
                             const dirs = [{dx:0,dy:-1}, {dx:1,dy:0}, {dx:0,dy:1}, {dx:-1,dy:0}];
                             for (const d of dirs) {
-                                const nx = curr.x + d.dx;
-                                const ny = curr.y + d.dy;
+                                const nx = curr.x + d.dx, ny = curr.y + d.dy;
                                 if (nx >= 0 && nx < maxCols && ny >= 0 && ny < maxRows) {
                                     const nKey = `${floorId}:${nx}:${ny}`;
                                     const nCell = newCells[nKey] || {};
-                                    
-                                    const cellZone = nCell.zoneId || null;
-                                    const isSameZone = cellZone === startZoneId;
-                                    const isFillable = nCell.type !== 'wall' && nCell.type !== 'stairs';
-                                    
-                                    if (isSameZone && isFillable && !visited.has(nKey)) {
-                                        visited.add(nKey);
-                                        q.push({x: nx, y: ny});
+                                    if ((nCell.zoneId || null) === startZoneId && nCell.type !== 'wall' && nCell.type !== 'stairs' && !visited.has(nKey)) {
+                                        visited.add(nKey); q.push({x: nx, y: ny});
                                     }
                                 }
                             }
@@ -405,38 +367,33 @@
                     } else if (currentTool === 'start') {
                         if (isDrag) return prevLayout; 
                         if (newLayout.startPos) {
-                        const oldKey = `${newLayout.startPos.floorId}:${newLayout.startPos.x}:${newLayout.startPos.y}`;
-                        if (newLayout.cells[oldKey]) {
-                            newLayout.cells[oldKey] = { ...newLayout.cells[oldKey], type: null };
-                            if (!newLayout.cells[oldKey].zoneId) delete newLayout.cells[oldKey];
-                        }
+                            const oldKey = `${newLayout.startPos.floorId}:${newLayout.startPos.x}:${newLayout.startPos.y}`;
+                            if (newLayout.cells[oldKey]) {
+                                newLayout.cells[oldKey] = { ...newLayout.cells[oldKey], type: null };
+                                if (!newLayout.cells[oldKey].zoneId) delete newLayout.cells[oldKey];
+                            }
                         }
                         newLayout.cells[cellKey] = { ...currentCell, type: 'start' };
                         newLayout.startPos = { floorId, x, y };
                     } else if (currentTool === 'table') {
                         if (!checkAdjacency(x, y, floorId, 'table', 'tableId', activeTableId.toUpperCase(), newLayout)) {
-                        if (!isDrag) setDrawError(`Action annulée : La table ${activeTableId.toUpperCase()} doit être connectée à ses autres parties.`);
-                        return prevLayout;
+                            if (!isDrag) setDrawError(`Action annulée : La table ${activeTableId.toUpperCase()} doit être connectée à ses autres parties.`);
+                            return prevLayout;
                         }
                         if (currentCell.type === 'start') newLayout.startPos = null;
                         newLayout.cells[cellKey] = { ...currentCell, type: 'table', tableId: activeTableId.toUpperCase(), isRound: isRoundTable, stairId: null, orientation: null };
                     } else if (currentTool === 'stairs') {
                         if (!checkAdjacency(x, y, floorId, 'stairs', 'stairId', activeStairId.toUpperCase(), newLayout)) {
-                        if (!isDrag) setDrawError(`Action annulée : L'escalier ${activeStairId.toUpperCase()} doit être connecté à ses autres parties.`);
-                        return prevLayout;
+                            if (!isDrag) setDrawError(`Action annulée : L'escalier ${activeStairId.toUpperCase()} doit être connecté à ses autres parties.`);
+                            return prevLayout;
                         }
                         if (currentCell.type === 'start') newLayout.startPos = null;
                         newLayout.cells[cellKey] = { ...currentCell, type: 'stairs', stairId: activeStairId.toUpperCase(), tableId: null, orientation: null, benchId: null };
                     } else if (currentTool === 'bench') {
                         if (isDrag) return prevLayout;
-                        
-                        const adjacentBench = [ {dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0} ]
-                            .map(d => prevLayout.cells[`${floorId}:${x+d.dx}:${y+d.dy}`])
-                            .find(c => c?.type === 'bench' && c.benchId);
-                            
+                        const adjacentBench = [ {dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0} ].map(d => prevLayout.cells[`${floorId}:${x+d.dx}:${y+d.dy}`]).find(c => c?.type === 'bench' && c.benchId);
                         if (adjacentBench) {
-                            setBenchMergePrompt({ x, y, floorId, adjacentBenchId: adjacentBench.benchId });
-                            return prevLayout;
+                            setBenchMergePrompt({ x, y, floorId, adjacentBenchId: adjacentBench.benchId }); return prevLayout;
                         } else {
                             if (currentCell.type === 'start') newLayout.startPos = null;
                             newLayout.cells[cellKey] = { ...currentCell, type: 'bench', benchId: Date.now().toString(), tableId: null, stairId: null, orientation: null };
@@ -455,9 +412,7 @@
                         if (currentCell.type === 'start') newLayout.startPos = null;
                         newLayout.cells[cellKey] = { ...currentCell, type: currentTool, tableId: null, stairId: null, orientation: null, benchId: null };
                     }
-                    
-                    saveLayout(newLayout);
-                    return newLayout;
+                    saveLayout(newLayout); return newLayout;
                 });
             }, [mode, currentTool, selectedZoneId, activeTableId, isRoundTable, activeStairId, activeKioskId, kioskOrientation, saveLayout, checkAdjacency]);
 
@@ -466,31 +421,24 @@
                     setLayout(prev => {
                         const newCells = {...prev.cells};
                         let newStartPos = prev.startPos;
-                        const minX = Math.min(dragStart.x, dragCurrent.x);
-                        const maxX = Math.max(dragStart.x, dragCurrent.x);
-                        const minY = Math.min(dragStart.y, dragCurrent.y);
-                        const maxY = Math.max(dragStart.y, dragCurrent.y);
+                        const minX = Math.min(dragStart.x, dragCurrent.x), maxX = Math.max(dragStart.x, dragCurrent.x);
+                        const minY = Math.min(dragStart.y, dragCurrent.y), maxY = Math.max(dragStart.y, dragCurrent.y);
 
                         for(let cx=minX; cx<=maxX; cx++) {
                             for(let cy=minY; cy<=maxY; cy++) {
                                 const key = `${currentFloorId}:${cx}:${cy}`;
-                                if (currentTool === 'zone') {
-                                    newCells[key] = { ...(newCells[key]||{}), zoneId: selectedZoneId };
-                                } else if (currentTool === 'eraser') {
+                                if (currentTool === 'zone') { newCells[key] = { ...(newCells[key]||{}), zoneId: selectedZoneId }; } 
+                                else if (currentTool === 'eraser') {
                                     if (newCells[key]?.type === 'start') newStartPos = null;
                                     delete newCells[key];
                                 }
                             }
                         }
                         const next = {...prev, cells: newCells, startPos: newStartPos};
-                        saveLayout(next);
-                        return next;
+                        saveLayout(next); return next;
                     });
                 }
-
-                setIsDrawing(false);
-                setDragStart(null);
-                setDragCurrent(null);
+                setIsDrawing(false); setDragStart(null); setDragCurrent(null);
                 if (mapContainerRef.current) {
                     mapContainerRef.current.isDragging = false;
                     mapContainerRef.current.style.cursor = (currentTool === 'pan' || mode === 'service') ? 'grab' : 'crosshair';
@@ -498,23 +446,14 @@
             };
 
             const handlePointerDown = (x, y) => { 
-                if (currentTool === 'zone' || currentTool === 'eraser') {
-                    setDragStart({x, y});
-                    setDragCurrent({x, y});
-                    setIsDrawing(true);
-                } else {
-                    setIsDrawing(true); 
-                    applyTool(x, y, currentFloorId, false); 
-                }
+                if (currentTool === 'zone' || currentTool === 'eraser') { setDragStart({x, y}); setDragCurrent({x, y}); setIsDrawing(true); } 
+                else { setIsDrawing(true); applyTool(x, y, currentFloorId, false); }
             };
 
             const handlePointerEnter = (x, y) => { 
                 if (isDrawing) {
-                    if (currentTool === 'zone' || currentTool === 'eraser') {
-                        setDragCurrent({x, y});
-                    } else {
-                        applyTool(x, y, currentFloorId, true);
-                    }
+                    if (currentTool === 'zone' || currentTool === 'eraser') { setDragCurrent({x, y}); } 
+                    else { applyTool(x, y, currentFloorId, true); }
                 }
             };
 
@@ -525,16 +464,9 @@
                     const cellKey = `${floorId}:${x}:${y}`;
                     const newLayout = { ...prevLayout, cells: { ...prevLayout.cells } };
                     const currentCell = newLayout.cells[cellKey] || {};
-                    
                     if (currentCell.type === 'start') newLayout.startPos = null;
-                    newLayout.cells[cellKey] = { 
-                        ...currentCell, 
-                        type: 'bench', 
-                        benchId: merge ? adjacentBenchId : Date.now().toString(),
-                        tableId: null, stairId: null, orientation: null 
-                    };
-                    saveLayout(newLayout);
-                    return newLayout;
+                    newLayout.cells[cellKey] = { ...currentCell, type: 'bench', benchId: merge ? adjacentBenchId : Date.now().toString(), tableId: null, stairId: null, orientation: null };
+                    saveLayout(newLayout); return newLayout;
                 });
                 setBenchMergePrompt(null);
             };
@@ -544,8 +476,7 @@
                 setLayout(prev => {
                     const newZ = { id: `z${Date.now()}`, name: newZoneName, color: newZoneColor };
                     const next = { ...prev, zones: [...prev.zones, newZ] };
-                    saveLayout(next);
-                    return next;
+                    saveLayout(next); return next;
                 });
                 setNewZoneName('');
             };
@@ -553,25 +484,16 @@
             const deleteZone = (zoneId) => {
                 setLayout(prev => {
                     const next = { 
-                        ...prev, 
-                        zones: prev.zones.filter(z => z.id !== zoneId),
-                        cells: Object.fromEntries(
-                        Object.entries(prev.cells).map(([key, cell]) => [
-                            key, cell.zoneId === zoneId ? { ...cell, zoneId: null } : cell
-                        ]).filter(([_, cell]) => cell.type || cell.zoneId) 
-                        )
+                        ...prev, zones: prev.zones.filter(z => z.id !== zoneId),
+                        cells: Object.fromEntries(Object.entries(prev.cells).map(([key, cell]) => [key, cell.zoneId === zoneId ? { ...cell, zoneId: null } : cell]).filter(([_, cell]) => cell.type || cell.zoneId))
                     };
-                    saveLayout(next);
-                    return next;
+                    saveLayout(next); return next;
                 });
                 if (selectedZoneId === zoneId) setSelectedZoneId(null);
             };
 
             const resetService = useCallback(() => {
-                setTargetTable('');
-                setPath([]);
-                setPathMessage(null);
-                setPathInstructions([]);
+                setTargetTable(''); setPath([]); setPathMessage(null); setPathInstructions([]);
                 const rdc = layout.floors.sort((a,b) => a.order - b.order)[0];
                 if (rdc) setCurrentFloorId(rdc.id);
             }, [layout.floors]);
@@ -579,34 +501,22 @@
             const triggerRoute = (targetNum) => {
                 calculatePath(targetNum);
                 if (rushTimeoutRef.current) clearTimeout(rushTimeoutRef.current);
-                rushTimeoutRef.current = setTimeout(() => {
-                    resetService();
-                }, 15000);
+                rushTimeoutRef.current = setTimeout(() => { resetService(); }, 15000);
             };
 
             const calculatePath = (targetNum) => {
-                if (!layout.startPos) {
-                    setPathMessage({ type: 'error', text: 'Point de départ non défini.' });
-                    return;
-                }
+                if (!layout.startPos) { setPathMessage({ type: 'error', text: 'Point de départ non défini.' }); return; }
 
                 let targetPositions = [];
                 for (const [key, cell] of Object.entries(layout.cells)) {
                     if (cell.type === 'table' && cell.tableId === targetNum) {
-                        const [floorId, x, y] = key.split(':');
-                        targetPositions.push({ floorId, x: parseInt(x), y: parseInt(y) });
+                        const [floorId, x, y] = key.split(':'); targetPositions.push({ floorId, x: parseInt(x), y: parseInt(y) });
                     }
                 }
-
-                if (targetPositions.length === 0) {
-                    setPathMessage({ type: 'error', text: `Table ${targetNum} introuvable.` });
-                    setPath([]);
-                    return;
-                }
+                if (targetPositions.length === 0) { setPathMessage({ type: 'error', text: `Table ${targetNum} introuvable.` }); setPath([]); return; }
 
                 const pq = [{ pos: layout.startPos, path: [layout.startPos], cost: 0 }];
-                const costs = new Map();
-                costs.set(`${layout.startPos.floorId}:${layout.startPos.x}:${layout.startPos.y}`, 0);
+                const costs = new Map(); costs.set(`${layout.startPos.floorId}:${layout.startPos.x}:${layout.startPos.y}`, 0);
                 const dirs = [ {dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0} ];
                 let foundPath = null;
 
@@ -614,34 +524,24 @@
                     pq.sort((a, b) => a.cost - b.cost); 
                     const { pos, path, cost } = pq.shift();
                     
-                    const isTarget = targetPositions.some(t => t.floorId === pos.floorId && t.x === pos.x && t.y === pos.y);
-                    if (isTarget) { foundPath = path; break; }
+                    if (targetPositions.some(t => t.floorId === pos.floorId && t.x === pos.x && t.y === pos.y)) { foundPath = path; break; }
 
                     const posFloorLayout = layout.floors.find(f => f.id === pos.floorId);
-                    const maxCols = posFloorLayout?.cols || layout.cols || 25;
-                    const maxRows = posFloorLayout?.rows || layout.rows || 15;
+                    const maxCols = posFloorLayout?.cols || layout.cols || 25, maxRows = posFloorLayout?.rows || layout.rows || 15;
 
                     for (const d of dirs) {
                         const nx = pos.x + d.dx, ny = pos.y + d.dy;
                         if (nx >= 0 && nx < maxCols && ny >= 0 && ny < maxRows) {
-                            const nextFloorId = pos.floorId;
-                            const key = `${nextFloorId}:${nx}:${ny}`;
-                            const cell = layout.cells[key];
-                            
+                            const nextFloorId = pos.floorId, key = `${nextFloorId}:${nx}:${ny}`, cell = layout.cells[key];
                             const isTargetNext = targetPositions.some(t => t.floorId === nextFloorId && t.x === nx && t.y === ny);
                             let walkable = !cell || !cell.type || ['door', 'start', 'stairs'].includes(cell.type) || isTargetNext;
                             let stepCost = 1; 
-                            
-                            if (cell && ['stool', 'chair', 'bench'].includes(cell.type)) {
-                                walkable = true; 
-                                stepCost = 1000; 
-                            }
+                            if (cell && ['stool', 'chair', 'bench'].includes(cell.type)) { walkable = true; stepCost = 1000; }
                             
                             if (walkable) {
                                 const newCost = cost + stepCost;
                                 if (!costs.has(key) || newCost < costs.get(key)) {
-                                    costs.set(key, newCost);
-                                    pq.push({ pos: { floorId: nextFloorId, x: nx, y: ny }, path: [...path, { floorId: nextFloorId, x: nx, y: ny }], cost: newCost });
+                                    costs.set(key, newCost); pq.push({ pos: { floorId: nextFloorId, x: nx, y: ny }, path: [...path, { floorId: nextFloorId, x: nx, y: ny }], cost: newCost });
                                 }
                             }
                         }
@@ -653,11 +553,10 @@
                             if (cell.type === 'stairs' && cell.stairId === currentCell.stairId) {
                                 const [sFloorId, sx, sy] = key.split(':');
                                 if (sFloorId !== pos.floorId) {
-                                const newCost = cost + 1; 
-                                if (!costs.has(key) || newCost < costs.get(key)) {
-                                    costs.set(key, newCost);
-                                    pq.push({ pos: { floorId: sFloorId, x: parseInt(sx), y: parseInt(sy) }, path: [...path, { floorId: sFloorId, x: parseInt(sx), y: parseInt(sy) }], cost: newCost });
-                                }
+                                    const newCost = cost + 1; 
+                                    if (!costs.has(key) || newCost < costs.get(key)) {
+                                        costs.set(key, newCost); pq.push({ pos: { floorId: sFloorId, x: parseInt(sx), y: parseInt(sy) }, path: [...path, { floorId: sFloorId, x: parseInt(sx), y: parseInt(sy) }], cost: newCost });
+                                    }
                                 }
                             }
                         }
@@ -666,50 +565,40 @@
 
                 if (foundPath) {
                     setPath(foundPath);
-                    let instructions = [];
-                    let currentSegmentFloor = layout.startPos.floorId;
+                    let instructions = [], currentSegmentFloor = layout.startPos.floorId;
                     const floorNames = layout.floors.reduce((acc, f) => ({...acc, [f.id]: f.name}), {});
                     
                     instructions.push({ floorId: currentSegmentFloor, text: `Départ : ${floorNames[currentSegmentFloor]}` });
                     for (let i = 1; i < foundPath.length; i++) {
                         if (foundPath[i].floorId !== currentSegmentFloor) {
-                        const prevCell = layout.cells[`${foundPath[i-1].floorId}:${foundPath[i-1].x}:${foundPath[i-1].y}`];
-                        instructions.push({ floorId: currentSegmentFloor, text: `Prendre l'escalier ${prevCell?.stairId || "?"}` });
-                        currentSegmentFloor = foundPath[i].floorId;
-                        instructions.push({ floorId: currentSegmentFloor, text: `Arrivée : ${floorNames[currentSegmentFloor]}` });
+                            const prevCell = layout.cells[`${foundPath[i-1].floorId}:${foundPath[i-1].x}:${foundPath[i-1].y}`];
+                            instructions.push({ floorId: currentSegmentFloor, text: `Prendre l'escalier ${prevCell?.stairId || "?"}` });
+                            currentSegmentFloor = foundPath[i].floorId;
+                            instructions.push({ floorId: currentSegmentFloor, text: `Arrivée : ${floorNames[currentSegmentFloor]}` });
                         }
                     }
                     instructions.push({ floorId: currentSegmentFloor, text: `Arrivée à la table ${targetNum}` });
                     
                     setPathInstructions(instructions);
                     setPathMessage({ type: 'success', text: `En route vers la table ${targetNum} (Retour auto 15s).` });
-                    
                     setCurrentFloorId(foundPath[foundPath.length - 1].floorId);
                 } else {
-                    setPath([]);
-                    setPathMessage({ type: 'error', text: `Chemin bloqué vers la table ${targetNum}.` });
+                    setPath([]); setPathMessage({ type: 'error', text: `Chemin bloqué vers la table ${targetNum}.` });
                 }
             };
 
             const handleServiceNumpad = (val) => {
                 if (rushTimeoutRef.current) clearTimeout(rushTimeoutRef.current); 
-
-                if (val === 'C') {
-                    resetService();
-                } else if (val === 'GO') {
-                    if (targetTable) triggerRoute(targetTable);
-                } else {
-                    const newVal = (targetTable + val).slice(0, 3); 
-                    setTargetTable(newVal);
-                    if (newVal.length === 3) {
-                        triggerRoute(newVal); 
-                    }
+                if (val === 'C') { resetService(); } 
+                else if (val === 'GO') { if (targetTable) triggerRoute(targetTable); } 
+                else {
+                    const newVal = (targetTable + val).slice(0, 3); setTargetTable(newVal);
+                    if (newVal.length === 3) triggerRoute(newVal); 
                 }
             };
 
             const currentFloor = layout.floors.find(f => f.id === currentFloorId) || layout.floors[0];
-            const floorCols = currentFloor.cols || layout.cols || 25;
-            const floorRows = currentFloor.rows || layout.rows || 15;
+            const floorCols = currentFloor.cols || layout.cols || 25, floorRows = currentFloor.rows || layout.rows || 15;
             const sortedFloors = [...layout.floors].sort((a, b) => b.order - a.order);
 
             const floorGroups = useMemo(() => {
@@ -722,19 +611,15 @@
                     if (cell.type === 'table' && cell.tableId) {
                         if(!tables[cell.tableId]) tables[cell.tableId] = { minX: x, maxX: x, minY: y, maxY: y };
                         else {
-                        tables[cell.tableId].minX = Math.min(tables[cell.tableId].minX, x);
-                        tables[cell.tableId].maxX = Math.max(tables[cell.tableId].maxX, x);
-                        tables[cell.tableId].minY = Math.min(tables[cell.tableId].minY, y);
-                        tables[cell.tableId].maxY = Math.max(tables[cell.tableId].maxY, y);
+                            tables[cell.tableId].minX = Math.min(tables[cell.tableId].minX, x); tables[cell.tableId].maxX = Math.max(tables[cell.tableId].maxX, x);
+                            tables[cell.tableId].minY = Math.min(tables[cell.tableId].minY, y); tables[cell.tableId].maxY = Math.max(tables[cell.tableId].maxY, y);
                         }
                     }
                     if (cell.type === 'stairs' && cell.stairId) {
                         if(!stairs[cell.stairId]) stairs[cell.stairId] = { minX: x, maxX: x, minY: y, maxY: y };
                         else {
-                        stairs[cell.stairId].minX = Math.min(stairs[cell.stairId].minX, x);
-                        stairs[cell.stairId].maxX = Math.max(stairs[cell.stairId].maxX, x);
-                        stairs[cell.stairId].minY = Math.min(stairs[cell.stairId].minY, y);
-                        stairs[cell.stairId].maxY = Math.max(stairs[cell.stairId].maxY, y);
+                            stairs[cell.stairId].minX = Math.min(stairs[cell.stairId].minX, x); stairs[cell.stairId].maxX = Math.max(stairs[cell.stairId].maxX, x);
+                            stairs[cell.stairId].minY = Math.min(stairs[cell.stairId].minY, y); stairs[cell.stairId].maxY = Math.max(stairs[cell.stairId].maxY, y);
                         }
                     }
                     if (cell.zoneId) {
@@ -743,26 +628,17 @@
                     }
                 });
 
-                const formatGroup = (dict) => Object.entries(dict).map(([id, data]) => ({
-                    id, minX: data.minX, minY: data.minY, w: data.maxX - data.minX + 1, h: data.maxY - data.minY + 1
-                }));
+                const formatGroup = (dict) => Object.entries(dict).map(([id, data]) => ({ id, minX: data.minX, minY: data.minY, w: data.maxX - data.minX + 1, h: data.maxY - data.minY + 1 }));
 
                 const formatZones = () => {
                     const zonesLabels = [];
-                    const obstacles = new Set();
-                    const zoneCellsMap = new Map();
+                    const obstacles = new Set(), zoneCellsMap = new Map();
 
                     Object.entries(layout.cells).forEach(([k, c]) => {
                         const [f, xStr, yStr] = k.split(':');
                         if (f === currentFloorId) {
-                            const x = parseInt(xStr);
-                            const y = parseInt(yStr);
-                            if (c.type && ['wall', 'stairs', 'table', 'chair', 'stool', 'bench', 'kiosk'].includes(c.type)) {
-                                obstacles.add(`${x}:${y}`);
-                            }
-                            if (c.zoneId) {
-                                zoneCellsMap.set(`${x}:${y}`, c.zoneId);
-                            }
+                            if (c.type && ['wall', 'stairs', 'table', 'chair', 'stool', 'bench', 'kiosk'].includes(c.type)) obstacles.add(`${parseInt(xStr)}:${parseInt(yStr)}`);
+                            if (c.zoneId) zoneCellsMap.set(`${parseInt(xStr)}:${parseInt(yStr)}`, c.zoneId);
                         }
                     });
 
@@ -770,42 +646,24 @@
                         const zData = layout.zones.find(z => z.id === id);
                         if (!zData) continue;
                         
-                        let bestCell = cells[0];
-                        let maxDist = -1;
-                        
+                        let bestCell = cells[0], maxDist = -1;
                         for (const c of cells) {
                             let minDist = Math.min(c.x + 1, floorCols - c.x, c.y + 1, floorRows - c.y);
                             for (let y = 0; y < floorRows; y++) {
                                 for (let x = 0; x < floorCols; x++) {
-                                    const key = `${x}:${y}`;
-                                    const isObstacle = obstacles.has(key);
-                                    const cellZone = zoneCellsMap.get(key);
-                                    
-                                    if (isObstacle || cellZone !== id) {
+                                    if (obstacles.has(`${x}:${y}`) || zoneCellsMap.get(`${x}:${y}`) !== id) {
                                         const d = Math.sqrt(Math.pow(c.x - x, 2) + Math.pow(c.y - y, 2));
                                         if (d < minDist) minDist = d;
                                     }
                                 }
                             }
-
-                            if (minDist > maxDist) {
-                                maxDist = minDist;
-                                bestCell = c;
-                            } else if (minDist === maxDist) {
-                                const cx = cells.reduce((sum, cl) => sum + cl.x, 0) / cells.length;
-                                const cy = cells.reduce((sum, cl) => sum + cl.y, 0) / cells.length;
-                                const distToCenter = Math.pow(c.x - cx, 2) + Math.pow(c.y - cy, 2);
-                                const bestDistToCenter = Math.pow(bestCell.x - cx, 2) + Math.pow(bestCell.y - cy, 2);
-                                if (distToCenter < bestDistToCenter) {
-                                    bestCell = c;
-                                }
+                            if (minDist > maxDist) { maxDist = minDist; bestCell = c; } 
+                            else if (minDist === maxDist) {
+                                const cx = cells.reduce((sum, cl) => sum + cl.x, 0) / cells.length, cy = cells.reduce((sum, cl) => sum + cl.y, 0) / cells.length;
+                                if ((Math.pow(c.x - cx, 2) + Math.pow(c.y - cy, 2)) < (Math.pow(bestCell.x - cx, 2) + Math.pow(bestCell.y - cy, 2))) bestCell = c;
                             }
                         }
-                        
-                        zonesLabels.push({
-                            id, name: zData.name, color: zData.color,
-                            x: bestCell.x, y: bestCell.y, radius: maxDist, size: cells.length
-                        });
+                        zonesLabels.push({ id, name: zData.name, color: zData.color, x: bestCell.x, y: bestCell.y, radius: maxDist, size: cells.length });
                     }
                     return zonesLabels;
                 };
@@ -817,8 +675,7 @@
 
             return (
                 <div className="h-[100dvh] flex flex-col bg-[#f9f8f4] text-[#2d2822] font-sans select-none overflow-hidden" 
-                     onPointerUp={handleGlobalPointerUp} 
-                     onPointerLeave={handleGlobalPointerUp}>
+                     onPointerUp={handleGlobalPointerUp} onPointerLeave={handleGlobalPointerUp}>
                     
                     {drawError && (
                         <div className="fixed top-4 sm:top-8 left-1/2 transform -translate-x-1/2 z-50 bg-red-600/95 backdrop-blur text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full shadow-lg font-bold text-sm sm:text-base animate-in fade-in slide-in-from-top-4">
@@ -830,7 +687,7 @@
                         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                         <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-xl max-w-sm w-full border border-[#e6e2da]">
                             <h3 className="text-lg sm:text-xl font-bold text-[#2d2822] mb-2 text-center">Fusionner les bancs ?</h3>
-                            <p className="text-[#7a7266] text-xs sm:text-sm text-center mb-6">Vous avez placé un banc à côté d'un autre. Voulez-vous les lier pour créer une banquette continue ?</p>
+                            <p className="text-[#7a7266] text-xs sm:text-sm text-center mb-6">Voulez-vous lier ces bancs pour créer une banquette continue ?</p>
                             <div className="flex gap-3">
                             <button onClick={() => handleBenchMergeDecision(false)} className="flex-1 py-2 sm:py-3 rounded-xl border border-[#e6e2da] bg-[#f9f8f4] text-[#7a7266] font-bold text-sm sm:text-base hover:bg-[#f4f2ec]">Non, séparés</button>
                             <button onClick={() => handleBenchMergeDecision(true)} className="flex-1 py-2 sm:py-3 rounded-xl bg-[#c17a23] text-white font-bold text-sm sm:text-base hover:bg-[#a6681e] shadow-md">Oui, fusionner</button>
@@ -920,24 +777,13 @@
                             >
                                 <div className="min-w-full min-h-full flex p-4 sm:p-8">
                                     <div className="m-auto relative transition-all duration-300"
-                                        style={{ 
-                                            width: `${(rotation === 90 || rotation === 270 ? floorRows : floorCols) * 40 * baseScale * zoom}px`, 
-                                            height: `${(rotation === 90 || rotation === 270 ? floorCols : floorRows) * 40 * baseScale * zoom}px`
-                                        }}>
-                                        
+                                        style={{ width: `${(rotation === 90 || rotation === 270 ? floorRows : floorCols) * 40 * baseScale * zoom}px`, height: `${(rotation === 90 || rotation === 270 ? floorCols : floorRows) * 40 * baseScale * zoom}px`}}>
                                         <div className={`absolute top-1/2 left-1/2 shadow-sm transition-transform duration-300 origin-center ${mode === 'edit' && currentTool !== 'pan' ? 'touch-none' : ''}`}
-                                            style={{ 
-                                                width: `${floorCols * 40}px`, height: `${floorRows * 40}px`,
-                                                transform: `translate(-50%, -50%) scale(${baseScale * zoom}) rotate(${rotation}deg)`
-                                            }}>
+                                            style={{ width: `${floorCols * 40}px`, height: `${floorRows * 40}px`, transform: `translate(-50%, -50%) scale(${baseScale * zoom}) rotate(${rotation}deg)` }}>
                                             
                                             <div className="absolute inset-0 border-t border-l border-[#e6e2da] bg-[#f4f2ec]">
                                                 <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                                                    <defs>
-                                                        <pattern id="grid" width={100/floorCols + "%"} height={100/floorRows + "%"} patternUnits="userSpaceOnUse">
-                                                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e6e2da" strokeWidth="1"/>
-                                                        </pattern>
-                                                    </defs>
+                                                    <defs><pattern id="grid" width={100/floorCols + "%"} height={100/floorRows + "%"} patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e6e2da" strokeWidth="1"/></pattern></defs>
                                                     <rect width="100%" height="100%" fill="url(#grid)" />
                                                 </svg>
                                             </div>
@@ -950,50 +796,23 @@
                                                         if (!cellData?.zoneId) return <div key={`bg-${cellKey}`} className="pointer-events-none" />;
                                                         const zData = layout.zones.find(z => z.id === cellData.zoneId);
                                                         if (!zData) return <div key={`bg-${cellKey}`} className="pointer-events-none" />;
-                                                        
-                                                        const hexToRgba = (hex, alpha) => {
-                                                            const r = parseInt(hex.slice(1, 3), 16) || 0;
-                                                            const g = parseInt(hex.slice(3, 5), 16) || 0;
-                                                            const b = parseInt(hex.slice(5, 7), 16) || 0;
-                                                            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                                                        };
-
-                                                        return (
-                                                            <div key={`bg-${cellKey}`} className="relative w-full h-full pointer-events-none" style={{ backgroundColor: hexToRgba(zData.color, 0.35) }} />
-                                                        );
+                                                        const hexToRgba = (hex, alpha) => { const r = parseInt(hex.slice(1, 3), 16) || 0; const g = parseInt(hex.slice(3, 5), 16) || 0; const b = parseInt(hex.slice(5, 7), 16) || 0; return `rgba(${r}, ${g}, ${b}, ${alpha})`; };
+                                                        return <div key={`bg-${cellKey}`} className="relative w-full h-full pointer-events-none" style={{ backgroundColor: hexToRgba(zData.color, 0.35) }} />;
                                                     })
                                                 )}
                                             </div>
 
                                             {isDrawing && ['zone', 'eraser'].includes(currentTool) && dragStart && dragCurrent && (
-                                                <div className="absolute z-[4] pointer-events-none"
-                                                    style={{
-                                                        left: `${Math.min(dragStart.x, dragCurrent.x) * 40}px`,
-                                                        top: `${Math.min(dragStart.y, dragCurrent.y) * 40}px`,
-                                                        width: `${(Math.abs(dragCurrent.x - dragStart.x) + 1) * 40}px`,
-                                                        height: `${(Math.abs(dragCurrent.y - dragStart.y) + 1) * 40}px`,
-                                                        backgroundColor: currentTool === 'zone' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                        border: `3px solid ${currentTool === 'zone' ? '#3b82f6' : '#ef4444'}`,
-                                                        boxShadow: '0 0 15px rgba(0,0,0,0.1)'
-                                                    }}
-                                                />
+                                                <div className="absolute z-[4] pointer-events-none" style={{ left: `${Math.min(dragStart.x, dragCurrent.x) * 40}px`, top: `${Math.min(dragStart.y, dragCurrent.y) * 40}px`, width: `${(Math.abs(dragCurrent.x - dragStart.x) + 1) * 40}px`, height: `${(Math.abs(dragCurrent.y - dragStart.y) + 1) * 40}px`, backgroundColor: currentTool === 'zone' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)', border: `3px solid ${currentTool === 'zone' ? '#3b82f6' : '#ef4444'}`, boxShadow: '0 0 15px rgba(0,0,0,0.1)' }} />
                                             )}
 
                                             <div className="absolute inset-0 pointer-events-none z-[5]">
                                                 {floorGroups.zones.map(z => {
                                                     const fontSizePx = Math.max(14, Math.min(45, z.radius * 12 + 10));
                                                     return (
-                                                        <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible"
-                                                            style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(1 / floorCols) * 100}%`, height: `${(1 / floorRows) * 100}%` }}>
+                                                        <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(1 / floorCols) * 100}%`, height: `${(1 / floorRows) * 100}%` }}>
                                                             <div className="absolute top-1/2 left-1/2 flex items-center justify-center transition-transform duration-300" style={{ transform: `translate(-50%, -50%) rotate(${-rotation}deg)` }}>
-                                                                <span className="font-black uppercase whitespace-nowrap text-center"
-                                                                    style={{ 
-                                                                        color: z.color, fontSize: `${fontSizePx}px`, letterSpacing: '0.05em',
-                                                                        textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)',
-                                                                        opacity: 0.95
-                                                                    }}>
-                                                                    {z.name}
-                                                                </span>
+                                                                <span className="font-black uppercase whitespace-nowrap text-center" style={{ color: z.color, fontSize: `${fontSizePx}px`, letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)', opacity: 0.95 }}>{z.name}</span>
                                                             </div>
                                                         </div>
                                                     );
@@ -1010,194 +829,56 @@
                                                         const leftCell = layout.cells[`${currentFloorId}:${x-1}:${y}`];
                                                         const topCell = layout.cells[`${currentFloorId}:${x}:${y-1}`];
                                                         
-                                                        const mergeRight = cellData && rightCell && cellData.type === rightCell.type &&
-                                                            (cellData.type === 'wall' || cellData.type === 'trash' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === rightCell.tableId) ||
-                                                            (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === rightCell.stairId));
-                                                            
-                                                        const mergeBottom = cellData && bottomCell && cellData.type === bottomCell.type &&
-                                                            (cellData.type === 'wall' || cellData.type === 'trash' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === bottomCell.tableId) ||
-                                                            (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === bottomCell.stairId));
-                                                            
+                                                        const mergeRight = cellData && rightCell && cellData.type === rightCell.type && (cellData.type === 'wall' || cellData.type === 'trash' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === rightCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === rightCell.stairId));
+                                                        const mergeBottom = cellData && bottomCell && cellData.type === bottomCell.type && (cellData.type === 'wall' || cellData.type === 'trash' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === bottomCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === bottomCell.stairId));
                                                         const isPath = path.some(p => p.floorId === currentFloorId && p.x === x && p.y === y);
                                                         const zColor = cellData?.zoneId ? layout.zones.find(z => z.id === cellData.zoneId)?.color : null;
 
                                                         return (
-                                                            <div key={cellKey} className="relative w-full h-full"
-                                                                onPointerDown={(e) => { 
-                                                                    if (currentTool === 'pan' || mode === 'service') return; 
-                                                                    e.preventDefault(); handlePointerDown(x, y); 
-                                                                }}
-                                                                onPointerEnter={(e) => { 
-                                                                    if (currentTool === 'pan' || mode === 'service') return; 
-                                                                    e.preventDefault(); handlePointerEnter(x, y); 
-                                                                }}
-                                                            >
+                                                            <div key={cellKey} className="relative w-full h-full" onPointerDown={(e) => { if (currentTool === 'pan' || mode === 'service') return; e.preventDefault(); handlePointerDown(x, y); }} onPointerEnter={(e) => { if (currentTool === 'pan' || mode === 'service') return; e.preventDefault(); handlePointerEnter(x, y); }}>
                                                                 {cellData?.type && TOOLS[cellData.type.toUpperCase()] && !['kiosk', 'bench', 'trash'].includes(cellData.type) && (() => {
                                                                     let bgColorClass = TOOLS[cellData.type.toUpperCase()]?.color;
                                                                     let bgStyle = { top: 0, left: 0, right: mergeRight ? '-1.5px' : '0', bottom: mergeBottom ? '-1.5px' : '0' };
-                                                                    
-                                                                    if (['table', 'chair', 'stool'].includes(cellData.type)) {
-                                                                        if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = 'brightness(0.7) saturate(1.5)'; }
-                                                                    }
+                                                                    if (['table', 'chair', 'stool'].includes(cellData.type)) { if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = 'brightness(0.7) saturate(1.5)'; } }
                                                                     if (cellData.type === 'wall' || cellData.type === 'stairs') { bgColorClass = 'bg-stone-600'; bgStyle.backgroundColor = ''; bgStyle.filter = 'none'; }
-                                                                    
                                                                     if (cellData.type === 'table' && cellData.isRound) {
                                                                         const isSameRound = (c) => c?.type === 'table' && c.isRound && c.tableId === cellData.tableId;
-                                                                        const rHasT = isSameRound(topCell); const rHasB = isSameRound(bottomCell); const rHasL = isSameRound(leftCell); const rHasR = isSameRound(rightCell);
+                                                                        const rHasT = isSameRound(topCell), rHasB = isSameRound(bottomCell), rHasL = isSameRound(leftCell), rHasR = isSameRound(rightCell);
                                                                         if (!rHasT && !rHasB && !rHasL && !rHasR) { bgStyle.borderRadius = '50%'; bgStyle.top = '2px'; bgStyle.bottom = '2px'; bgStyle.left = '2px'; bgStyle.right = '2px'; } 
                                                                         else {
-                                                                            bgStyle.borderTopLeftRadius = (!rHasT && !rHasL) ? '100%' : '0';
-                                                                            bgStyle.borderTopRightRadius = (!rHasT && !rHasR) ? '100%' : '0';
-                                                                            bgStyle.borderBottomLeftRadius = (!rHasB && !rHasL) ? '100%' : '0';
-                                                                            bgStyle.borderBottomRightRadius = (!rHasB && !rHasR) ? '100%' : '0';
+                                                                            bgStyle.borderTopLeftRadius = (!rHasT && !rHasL) ? '100%' : '0'; bgStyle.borderTopRightRadius = (!rHasT && !rHasR) ? '100%' : '0';
+                                                                            bgStyle.borderBottomLeftRadius = (!rHasB && !rHasL) ? '100%' : '0'; bgStyle.borderBottomRightRadius = (!rHasB && !rHasR) ? '100%' : '0';
                                                                             bgStyle.top = rHasT ? '0' : '2px'; bgStyle.bottom = rHasB ? '0' : '2px'; bgStyle.left = rHasL ? '0' : '2px'; bgStyle.right = rHasR ? '0' : '2px';
                                                                         }
                                                                     }
                                                                     bgStyle.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.1)';
-                                                                    
                                                                     return (
                                                                         <div className={`absolute z-10 ${bgColorClass}`} style={bgStyle}>
-                                                                            {['door', 'eraser'].includes(cellData.type) && (
-                                                                                <div className="w-full h-full flex items-center justify-center pointer-events-none opacity-40 text-white">
-                                                                                    <i className={TOOLS[cellData.type.toUpperCase()].icon} style={{ fontSize: 14, transform: `rotate(${-rotation}deg)` }}></i>
-                                                                                </div>
-                                                                            )}
-                                                                            {cellData.type === 'chair' && (
-                                                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                                    <div className="w-[60%] h-[60%] rounded shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.7) saturate(1.5)' : 'none' }}></div>
-                                                                                </div>
-                                                                            )}
-                                                                            {cellData.type === 'stool' && (
-                                                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                                    <div className="w-[50%] h-[50%] rounded-full shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.7) saturate(1.5)' : 'none' }}></div>
-                                                                                </div>
-                                                                            )}
+                                                                            {['door', 'eraser'].includes(cellData.type) && <div className="w-full h-full flex items-center justify-center pointer-events-none opacity-40 text-white"><i className={TOOLS[cellData.type.toUpperCase()].icon} style={{ fontSize: 14, transform: `rotate(${-rotation}deg)` }}></i></div>}
+                                                                            {cellData.type === 'chair' && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-[60%] h-[60%] rounded shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.7) saturate(1.5)' : 'none' }}></div></div>}
+                                                                            {cellData.type === 'stool' && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-[50%] h-[50%] rounded-full shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.7) saturate(1.5)' : 'none' }}></div></div>}
                                                                         </div>
                                                                     );
                                                                 })()}
 
                                                                 {cellData?.type === 'trash' && (() => {
-                                                                    const hasT = topCell?.type === 'trash';
-                                                                    const hasB = bottomCell?.type === 'trash';
-                                                                    const hasL = leftCell?.type === 'trash';
-                                                                    const hasR = rightCell?.type === 'trash';
-                                                                    
-                                                                    const isIsolated = !hasT && !hasB && !hasL && !hasR;
-                                                                    const isHoriz = hasL || hasR;
-                                                                    const isVert = (hasT || hasB) && !isHoriz;
-                                                                    const dir = isVert ? 'vert' : 'horiz';
-
-                                                                    const renderGrey = (isFull) => (
-                                                                        <div className={`${isFull ? 'w-full h-full' : (dir === 'vert' ? 'w-full h-1/2 border-b-[1.5px]' : 'w-1/2 h-full border-r-[1.5px]')} bg-[#525252] border-[#1a1a1a] flex ${dir === 'vert' ? 'flex-col' : 'flex-row'} items-center justify-center gap-[15%]`}>
-                                                                            <div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div>
-                                                                            <div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div>
-                                                                            <div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div>
-                                                                        </div>
-                                                                    );
-
-                                                                    const renderBrown = (isFull) => (
-                                                                        <div className={`${isFull ? 'w-full h-full' : (dir === 'vert' ? 'w-full h-1/2' : 'w-1/2 h-full')} bg-[#cdae6b] flex items-center justify-center relative`}>
-                                                                            <div className={`${isFull ? 'w-[75%] h-[75%]' : 'w-[60%] h-[60%]'} rounded-full border-[1.5px] border-[#1a1a1a] flex flex-col items-center justify-center gap-[12%]`}>
-                                                                                <div className="w-[25%] h-[25%] bg-[#1a1a1a] rounded-full"></div>
-                                                                                <div className="w-[40%] h-[15%] bg-[#1a1a1a] rounded-full"></div>
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-
-                                                                    return (
-                                                                        <div className="absolute inset-0 pointer-events-none z-10" style={{ padding: '0px' }}>
-                                                                            <div className="w-full h-full border-[1.5px] border-[#1a1a1a] overflow-hidden rounded-md shadow-md"
-                                                                                 style={{
-                                                                                     borderTopRightRadius: mergeRight ? '0' : '6px',
-                                                                                     borderBottomRightRadius: mergeRight || mergeBottom ? '0' : '6px',
-                                                                                     borderBottomLeftRadius: mergeBottom || hasL ? '0' : '6px',
-                                                                                     borderTopLeftRadius: hasT || hasL ? '0' : '6px'
-                                                                                 }}>
-                                                                                {isIsolated ? (
-                                                                                    <div className={`w-full h-full flex ${dir === 'vert' ? 'flex-col' : 'flex-row'} pointer-events-none opacity-95`}>
-                                                                                        {renderGrey(false)}
-                                                                                        {renderBrown(false)}
-                                                                                    </div>
-                                                                                ) : isHoriz ? (
-                                                                                    <div className="w-full h-full flex pointer-events-none opacity-95">
-                                                                                        {!hasL ? renderGrey(true) : renderBrown(true)}
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <div className="w-full h-full flex pointer-events-none opacity-95">
-                                                                                        {!hasT ? renderGrey(true) : renderBrown(true)}
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
+                                                                    const hasT = topCell?.type === 'trash', hasB = bottomCell?.type === 'trash', hasL = leftCell?.type === 'trash', hasR = rightCell?.type === 'trash';
+                                                                    const isIsolated = !hasT && !hasB && !hasL && !hasR, isHoriz = hasL || hasR, isVert = (hasT || hasB) && !isHoriz, dir = isVert ? 'vert' : 'horiz';
+                                                                    const renderGrey = (isFull) => (<div className={`${isFull ? 'w-full h-full' : (dir === 'vert' ? 'w-full h-1/2 border-b-[1.5px]' : 'w-1/2 h-full border-r-[1.5px]')} bg-[#525252] border-[#1a1a1a] flex ${dir === 'vert' ? 'flex-col' : 'flex-row'} items-center justify-center gap-[15%]`}><div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div><div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div><div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div></div>);
+                                                                    const renderBrown = (isFull) => (<div className={`${isFull ? 'w-full h-full' : (dir === 'vert' ? 'w-full h-1/2' : 'w-1/2 h-full')} bg-[#cdae6b] flex items-center justify-center relative`}><div className={`${isFull ? 'w-[75%] h-[75%]' : 'w-[60%] h-[60%]'} rounded-full border-[1.5px] border-[#1a1a1a] flex flex-col items-center justify-center gap-[12%]`}><div className="w-[25%] h-[25%] bg-[#1a1a1a] rounded-full"></div><div className="w-[40%] h-[15%] bg-[#1a1a1a] rounded-full"></div></div></div>);
+                                                                    return (<div className="absolute inset-0 pointer-events-none z-10" style={{ padding: '0px' }}><div className="w-full h-full border-[1.5px] border-[#1a1a1a] overflow-hidden rounded-md shadow-md" style={{ borderTopRightRadius: mergeRight ? '0' : '6px', borderBottomRightRadius: mergeRight || mergeBottom ? '0' : '6px', borderBottomLeftRadius: mergeBottom || hasL ? '0' : '6px', borderTopLeftRadius: hasT || hasL ? '0' : '6px' }}>{isIsolated ? (<div className={`w-full h-full flex ${dir === 'vert' ? 'flex-col' : 'flex-row'} pointer-events-none opacity-95`}>{renderGrey(false)}{renderBrown(false)}</div>) : isHoriz ? (<div className="w-full h-full flex pointer-events-none opacity-95">{!hasL ? renderGrey(true) : renderBrown(true)}</div>) : (<div className="w-full h-full flex pointer-events-none opacity-95">{!hasT ? renderGrey(true) : renderBrown(true)}</div>)}</div></div>);
                                                                 })()}
 
                                                                 {cellData?.type === 'bench' && (() => {
-                                                                    const hasL = cellData.benchId === leftCell?.benchId;
-                                                                    const hasT = cellData.benchId === topCell?.benchId;
-                                                                    const hasR = cellData.benchId === rightCell?.benchId;
-                                                                    const hasB = cellData.benchId === bottomCell?.benchId;
-                                                                    
-                                                                    const hasTL = cellData.benchId === layout.cells[`${currentFloorId}:${x-1}:${y-1}`]?.benchId;
-                                                                    const hasTR = cellData.benchId === layout.cells[`${currentFloorId}:${x+1}:${y-1}`]?.benchId;
-                                                                    const hasBL = cellData.benchId === layout.cells[`${currentFloorId}:${x-1}:${y+1}`]?.benchId;
-                                                                    const hasBR = cellData.benchId === layout.cells[`${currentFloorId}:${x+1}:${y+1}`]?.benchId;
-
+                                                                    const hasL = cellData.benchId === leftCell?.benchId, hasT = cellData.benchId === topCell?.benchId, hasR = cellData.benchId === rightCell?.benchId, hasB = cellData.benchId === bottomCell?.benchId;
+                                                                    const hasTL = cellData.benchId === layout.cells[`${currentFloorId}:${x-1}:${y-1}`]?.benchId, hasTR = cellData.benchId === layout.cells[`${currentFloorId}:${x+1}:${y-1}`]?.benchId, hasBL = cellData.benchId === layout.cells[`${currentFloorId}:${x-1}:${y+1}`]?.benchId, hasBR = cellData.benchId === layout.cells[`${currentFloorId}:${x+1}:${y+1}`]?.benchId;
                                                                     const zColor = cellData.zoneId ? layout.zones.find(z => z.id === cellData.zoneId)?.color : '#a59a8c';
-
-                                                                    return (
-                                                                        <div className="absolute inset-0 pointer-events-none z-10 drop-shadow-md">
-                                                                            <div className="w-full h-full absolute" style={{ filter: 'brightness(0.85)' }}>
-                                                                                <div className="absolute" style={{
-                                                                                    backgroundColor: zColor,
-                                                                                    top: '15%', bottom: '15%', left: '15%', right: '15%',
-                                                                                    borderTopLeftRadius: (!hasT && !hasL) ? '12px' : '0',
-                                                                                    borderTopRightRadius: (!hasT && !hasR) ? '12px' : '0',
-                                                                                    borderBottomLeftRadius: (!hasB && !hasL) ? '12px' : '0',
-                                                                                    borderBottomRightRadius: (!hasB && !hasR) ? '12px' : '0',
-                                                                                }} />
-                                                                                
-                                                                                {hasT && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: '15%', right: '15%' }} />}
-                                                                                {hasB && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: '15%', right: '15%' }} />}
-                                                                                {hasL && <div className="absolute" style={{ backgroundColor: zColor, top: '15%', bottom: '15%', left: 0, right: '84%' }} />}
-                                                                                {hasR && <div className="absolute" style={{ backgroundColor: zColor, top: '15%', bottom: '15%', left: '84%', right: 0 }} />}
-                                                                                
-                                                                                {hasT && hasL && hasTL && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: 0, right: '84%' }} />}
-                                                                                {hasT && hasR && hasTR && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: '84%', right: 0 }} />}
-                                                                                {hasB && hasL && hasBL && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: 0, right: '84%' }} />}
-                                                                                {hasB && hasR && hasBR && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: '84%', right: 0 }} />}
-
-                                                                                {hasT && hasL && !hasTL && <div className="absolute" style={{ top: 0, bottom: '84%', left: 0, right: '84%', background: `radial-gradient(circle at top left, transparent 6px, ${zColor} 6px)` }} />}
-                                                                                {hasT && hasR && !hasTR && <div className="absolute" style={{ top: 0, bottom: '84%', left: '84%', right: 0, background: `radial-gradient(circle at top right, transparent 6px, ${zColor} 6px)` }} />}
-                                                                                {hasB && hasL && !hasBL && <div className="absolute" style={{ top: '84%', bottom: 0, left: 0, right: '84%', background: `radial-gradient(circle at bottom left, transparent 6px, ${zColor} 6px)` }} />}
-                                                                                {hasB && hasR && !hasBR && <div className="absolute" style={{ top: '84%', bottom: 0, left: '84%', right: 0, background: `radial-gradient(circle at bottom right, transparent 6px, ${zColor} 6px)` }} />}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
+                                                                    return (<div className="absolute inset-0 pointer-events-none z-10 drop-shadow-md"><div className="w-full h-full absolute" style={{ filter: 'brightness(0.85)' }}><div className="absolute" style={{ backgroundColor: zColor, top: '15%', bottom: '15%', left: '15%', right: '15%', borderTopLeftRadius: (!hasT && !hasL) ? '12px' : '0', borderTopRightRadius: (!hasT && !hasR) ? '12px' : '0', borderBottomLeftRadius: (!hasB && !hasL) ? '12px' : '0', borderBottomRightRadius: (!hasB && !hasR) ? '12px' : '0', }} />{hasT && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: '15%', right: '15%' }} />}{hasB && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: '15%', right: '15%' }} />}{hasL && <div className="absolute" style={{ backgroundColor: zColor, top: '15%', bottom: '15%', left: 0, right: '84%' }} />}{hasR && <div className="absolute" style={{ backgroundColor: zColor, top: '15%', bottom: '15%', left: '84%', right: 0 }} />}{hasT && hasL && hasTL && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: 0, right: '84%' }} />}{hasT && hasR && hasTR && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: '84%', right: 0 }} />}{hasB && hasL && hasBL && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: 0, right: '84%' }} />}{hasB && hasR && hasBR && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: '84%', right: 0 }} />}{hasT && hasL && !hasTL && <div className="absolute" style={{ top: 0, bottom: '84%', left: 0, right: '84%', background: `radial-gradient(circle at top left, transparent 6px, ${zColor} 6px)` }} />}{hasT && hasR && !hasTR && <div className="absolute" style={{ top: 0, bottom: '84%', left: '84%', right: 0, background: `radial-gradient(circle at top right, transparent 6px, ${zColor} 6px)` }} />}{hasB && hasL && !hasBL && <div className="absolute" style={{ top: '84%', bottom: 0, left: 0, right: '84%', background: `radial-gradient(circle at bottom left, transparent 6px, ${zColor} 6px)` }} />}{hasB && hasR && !hasBR && <div className="absolute" style={{ top: '84%', bottom: 0, left: '84%', right: 0, background: `radial-gradient(circle at bottom right, transparent 6px, ${zColor} 6px)` }} />}</div></div>);
                                                                 })()}
 
-                                                                {cellData?.type === 'kiosk' && (
-                                                                    <div className={`absolute bg-stone-700 flex items-center justify-center z-20 pointer-events-none ${
-                                                                        cellData.orientation === 'N' ? 'top-0 left-0 right-0 h-1/2 rounded-b-sm' :
-                                                                        cellData.orientation === 'S' ? 'bottom-0 left-0 right-0 h-1/2 rounded-t-sm' :
-                                                                        cellData.orientation === 'E' ? 'top-0 right-0 bottom-0 w-1/2 rounded-l-sm' :
-                                                                        'top-0 left-0 bottom-0 w-1/2 rounded-r-sm'
-                                                                    }`}>
-                                                                    <span className="text-[10px] text-white font-bold leading-none transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}>
-                                                                        {cellData.kioskId}
-                                                                    </span>
-                                                                    </div>
-                                                                )}
-
-                                                                {cellData?.type === 'start' && (
-                                                                    <div className="absolute inset-1 bg-[#2a7a6c] rounded-full flex items-center justify-center z-20 shadow-md pointer-events-none text-white">
-                                                                        <i className="fas fa-map-marker-alt transition-transform duration-300" style={{ fontSize: 16, transform: `rotate(${-rotation}deg)` }}></i>
-                                                                    </div>
-                                                                )}
-
-                                                                {isPath && (
-                                                                <div className="absolute inset-2 bg-blue-500 rounded-full z-40 shadow-[0_0_10px_rgba(59,130,246,0.8)] pointer-events-none animate-pulse" />
-                                                                )}
+                                                                {cellData?.type === 'kiosk' && (<div className={`absolute bg-stone-700 flex items-center justify-center z-20 pointer-events-none ${cellData.orientation === 'N' ? 'top-0 left-0 right-0 h-1/2 rounded-b-sm' : cellData.orientation === 'S' ? 'bottom-0 left-0 right-0 h-1/2 rounded-t-sm' : cellData.orientation === 'E' ? 'top-0 right-0 bottom-0 w-1/2 rounded-l-sm' : 'top-0 left-0 bottom-0 w-1/2 rounded-r-sm'}`}><span className="text-[10px] text-white font-bold leading-none transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}>{cellData.kioskId}</span></div>)}
+                                                                {cellData?.type === 'start' && (<div className="absolute inset-1 bg-[#2a7a6c] rounded-full flex items-center justify-center z-20 shadow-md pointer-events-none text-white"><i className="fas fa-map-marker-alt transition-transform duration-300" style={{ fontSize: 16, transform: `rotate(${-rotation}deg)` }}></i></div>)}
+                                                                {isPath && (<div className="absolute inset-2 bg-blue-500 rounded-full z-40 shadow-[0_0_10px_rgba(59,130,246,0.8)] pointer-events-none animate-pulse" />)}
                                                             </div>
                                                         );
                                                     })
@@ -1207,25 +888,9 @@
                                             <div className="absolute inset-0 pointer-events-none z-30">
                                                 {floorGroups.tables.map(t => {
                                                     const isTarget = targetTable === t.id;
-                                                    return (
-                                                    <div key={`t-${t.id}`} className={`absolute flex items-center justify-center transition-all ${isTarget ? 'ring-4 ring-blue-500 shadow-2xl bg-blue-500/30' : ''}`}
-                                                        style={{ left: `${(t.minX / floorCols) * 100}%`, top: `${(t.minY / floorRows) * 100}%`, width: `${(t.w / floorCols) * 100}%`, height: `${(t.h / floorRows) * 100}%` }}>
-                                                        <svg viewBox="0 0 100 100" className="w-full h-full max-w-[70%] max-h-[70%] overflow-visible transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}>
-                                                            <text x="50" y="50" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="900" fontSize="35" className="drop-shadow-md">{t.id}</text>
-                                                        </svg>
-                                                    </div>
-                                                )})}
-
-                                                {floorGroups.stairs.map(s => (
-                                                    <div key={`s-${s.id}`} className="absolute flex items-center justify-center"
-                                                        style={{ left: `${(s.minX / floorCols) * 100}%`, top: `${(s.minY / floorRows) * 100}%`, width: `${(s.w / floorCols) * 100}%`, height: `${(s.h / floorRows) * 100}%` }}>
-                                                        <svg viewBox="0 0 100 100" className="w-full h-full max-w-[60%] max-h-[60%] overflow-visible opacity-90 transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}>
-                                                            <path d="M20,70 L45,70 L45,50 L70,50 L70,30" fill="none" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-                                                            <circle cx="80" cy="20" r="4" fill="white" />
-                                                            <text x="50" y="50" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="900" fontSize="25" transform="translate(-15, -15)">{s.id}</text>
-                                                        </svg>
-                                                    </div>
-                                                ))}
+                                                    return (<div key={`t-${t.id}`} className={`absolute flex items-center justify-center transition-all ${isTarget ? 'ring-4 ring-blue-500 shadow-2xl bg-blue-500/30' : ''}`} style={{ left: `${(t.minX / floorCols) * 100}%`, top: `${(t.minY / floorRows) * 100}%`, width: `${(t.w / floorCols) * 100}%`, height: `${(t.h / floorRows) * 100}%` }}><svg viewBox="0 0 100 100" className="w-full h-full max-w-[70%] max-h-[70%] overflow-visible transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}><text x="50" y="50" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="900" fontSize="35" className="drop-shadow-md">{t.id}</text></svg></div>)
+                                                })}
+                                                {floorGroups.stairs.map(s => (<div key={`s-${s.id}`} className="absolute flex items-center justify-center" style={{ left: `${(s.minX / floorCols) * 100}%`, top: `${(s.minY / floorRows) * 100}%`, width: `${(s.w / floorCols) * 100}%`, height: `${(s.h / floorRows) * 100}%` }}><svg viewBox="0 0 100 100" className="w-full h-full max-w-[60%] max-h-[60%] overflow-visible opacity-90 transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}><path d="M20,70 L45,70 L45,50 L70,50 L70,30" fill="none" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="80" cy="20" r="4" fill="white" /><text x="50" y="50" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="900" fontSize="25" transform="translate(-15, -15)">{s.id}</text></svg></div>))}
                                             </div>
 
                                         </div>
@@ -1243,13 +908,8 @@
                                     <h2 className="text-base sm:text-xl font-bold text-[#2d2822] mb-3 sm:mb-4">Outils de dessin</h2>
                                     <div className="grid grid-cols-4 sm:grid-cols-3 gap-2">
                                     {Object.values(TOOLS).map(tool => (
-                                        <button key={tool.id} onClick={() => setCurrentTool(tool.id)}
-                                        className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${
-                                            currentTool === tool.id ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white hover:bg-gray-50 text-[#7a7266]'
-                                        }`}
-                                        >
-                                        <i className={`${tool.icon} mb-1 sm:text-[18px]`}></i>
-                                        <span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-bold text-center leading-tight">{tool.name}</span>
+                                        <button key={tool.id} onClick={() => setCurrentTool(tool.id)} className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${currentTool === tool.id ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white hover:bg-gray-50 text-[#7a7266]'}`}>
+                                        <i className={`${tool.icon} mb-1 sm:text-[18px]`}></i><span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-bold text-center leading-tight">{tool.name}</span>
                                         </button>
                                     ))}
                                     </div>
@@ -1258,38 +918,23 @@
                                 {currentTool === 'table' && (
                                     <div className="p-4 bg-[#fffbf4] border border-[#c17a23] rounded-xl">
                                     <label className="block text-sm font-bold text-[#c17a23] mb-2">Numéro de la table :</label>
-                                    <input type="text" maxLength={3} value={activeTableId} onChange={e => setActiveTableId(e.target.value.toUpperCase())}
-                                        className="w-full p-2 rounded border border-[#d6cfc2] font-bold text-center text-lg outline-none focus:border-[#c17a23] mb-3" placeholder="Ex: 312"
-                                    />
-                                    <label className="flex items-center justify-center gap-2 text-sm font-bold text-[#c17a23] cursor-pointer bg-white p-2 border border-[#d6cfc2] rounded-lg shadow-sm hover:bg-gray-50">
-                                        <input type="checkbox" checked={isRoundTable} onChange={e => setIsRoundTable(e.target.checked)} className="w-4 h-4 rounded text-[#c17a23] focus:ring-[#c17a23]" />
-                                        Table Ronde (Individuelle ou Fusion)
-                                    </label>
+                                    <input type="text" maxLength={3} value={activeTableId} onChange={e => setActiveTableId(e.target.value.toUpperCase())} className="w-full p-2 rounded border border-[#d6cfc2] font-bold text-center text-lg outline-none focus:border-[#c17a23] mb-3" placeholder="Ex: 312" />
+                                    <label className="flex items-center justify-center gap-2 text-sm font-bold text-[#c17a23] cursor-pointer bg-white p-2 border border-[#d6cfc2] rounded-lg shadow-sm hover:bg-gray-50"><input type="checkbox" checked={isRoundTable} onChange={e => setIsRoundTable(e.target.checked)} className="w-4 h-4 rounded text-[#c17a23] focus:ring-[#c17a23]" />Table Ronde (Individuelle ou Fusion)</label>
                                     </div>
                                 )}
                                 {currentTool === 'stairs' && (
                                     <div className="p-4 bg-stone-100 border border-stone-400 rounded-xl">
                                     <label className="block text-sm font-bold text-stone-700 mb-2">ID d'escalier (Liaison) :</label>
-                                    <input type="text" maxLength={3} value={activeStairId} onChange={e => setActiveStairId(e.target.value.toUpperCase())}
-                                        className="w-full p-2 rounded border border-stone-300 font-bold text-center text-lg outline-none focus:border-stone-500" placeholder="Ex: A"
-                                    />
+                                    <input type="text" maxLength={3} value={activeStairId} onChange={e => setActiveStairId(e.target.value.toUpperCase())} className="w-full p-2 rounded border border-stone-300 font-bold text-center text-lg outline-none focus:border-stone-500" placeholder="Ex: A" />
                                     </div>
                                 )}
                                 {currentTool === 'kiosk' && (
                                     <div className="p-4 bg-stone-100 border border-stone-400 rounded-xl">
                                     <label className="block text-sm font-bold text-stone-700 mb-2">Numéro Borne :</label>
-                                    <input type="text" maxLength={3} value={activeKioskId} onChange={e => setActiveKioskId(e.target.value.toUpperCase())}
-                                        className="w-full p-2 rounded border border-stone-300 font-bold text-center text-lg outline-none mb-3" placeholder="Ex: 1"
-                                    />
+                                    <input type="text" maxLength={3} value={activeKioskId} onChange={e => setActiveKioskId(e.target.value.toUpperCase())} className="w-full p-2 rounded border border-stone-300 font-bold text-center text-lg outline-none mb-3" placeholder="Ex: 1" />
                                     <label className="block text-sm font-bold text-stone-700 mb-2">Orientation :</label>
                                     <div className="flex gap-2">
-                                        {['N', 'E', 'S', 'W'].map(dir => (
-                                        <button key={dir} onClick={() => setKioskOrientation(dir)}
-                                            className={`flex-1 py-1.5 rounded font-bold border transition-colors ${kioskOrientation === dir ? 'bg-stone-600 text-white border-stone-600' : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-100'}`}
-                                        >
-                                            {dir}
-                                        </button>
-                                        ))}
+                                        {['N', 'E', 'S', 'W'].map(dir => (<button key={dir} onClick={() => setKioskOrientation(dir)} className={`flex-1 py-1.5 rounded font-bold border transition-colors ${kioskOrientation === dir ? 'bg-stone-600 text-white border-stone-600' : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-100'}`}>{dir}</button>))}
                                     </div>
                                     </div>
                                 )}
@@ -1297,9 +942,7 @@
                                 <div className="border-t border-[#e6e2da] pt-4 mt-2">
                                     <div className="flex justify-between items-center mb-4">
                                     <h2 className="text-lg font-bold text-[#2d2822]">Étages</h2>
-                                    <button onClick={() => setIsManagingFloors(!isManagingFloors)} className={`text-xs px-3 py-1.5 rounded-lg border font-bold transition-colors ${isManagingFloors ? 'bg-[#2d2822] text-white border-[#2d2822]' : 'bg-white text-[#7a7266] border-[#e6e2da]'}`}>
-                                        {isManagingFloors ? 'Terminer' : 'Gérer'}
-                                    </button>
+                                    <button onClick={() => setIsManagingFloors(!isManagingFloors)} className={`text-xs px-3 py-1.5 rounded-lg border font-bold transition-colors ${isManagingFloors ? 'bg-[#2d2822] text-white border-[#2d2822]' : 'bg-white text-[#7a7266] border-[#e6e2da]'}`}>{isManagingFloors ? 'Terminer' : 'Gérer'}</button>
                                     </div>
 
                                     {isManagingFloors ? (
@@ -1307,27 +950,19 @@
                                         <div className="flex flex-col gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
                                             {layout.floors.map(f => (
                                                 <div key={f.id} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-[#e6e2da] shadow-sm">
-                                                    <input type="text" value={f.name} onChange={(e) => handleRenameFloor(f.id, e.target.value)}
-                                                        className="flex-grow p-1.5 border border-[#d6cfc2] rounded text-xs font-bold focus:outline-none focus:border-[#2d2822]" />
-                                                    {layout.floors.length > 1 && (
-                                                    <button onClick={() => handleDeleteFloor(f.id)} className="text-red-400 hover:text-red-600 p-1 transition-colors"><i className="fas fa-trash-alt"></i></button>
-                                                    )}
+                                                    <input type="text" value={f.name} onChange={(e) => handleRenameFloor(f.id, e.target.value)} className="flex-grow p-1.5 border border-[#d6cfc2] rounded text-xs font-bold focus:outline-none focus:border-[#2d2822]" />
+                                                    {layout.floors.length > 1 && (<button onClick={() => handleDeleteFloor(f.id)} className="text-red-400 hover:text-red-600 p-1 transition-colors"><i className="fas fa-trash-alt"></i></button>)}
                                                 </div>
                                             ))}
                                         </div>
                                         <div className="flex gap-2 items-center pt-2 border-t border-[#e6e2da]">
-                                            <input type="text" value={newFloorName} onChange={e=>setNewFloorName(e.target.value)} placeholder="Nouvel étage..."
-                                                    className="flex-grow p-2 border border-[#d6cfc2] rounded-lg text-xs outline-none focus:border-[#2d2822]" />
+                                            <input type="text" value={newFloorName} onChange={e=>setNewFloorName(e.target.value)} placeholder="Nouvel étage..." className="flex-grow p-2 border border-[#d6cfc2] rounded-lg text-xs outline-none focus:border-[#2d2822]" />
                                             <button onClick={handleAddFloor} className="p-2 bg-[#2d2822] text-white rounded-lg hover:bg-black transition-colors"><i className="fas fa-plus"></i></button>
                                         </div>
                                     </div>
                                     ) : (
                                     <div className="flex gap-2 flex-wrap">
-                                        {layout.floors.map(f => (
-                                            <button key={f.id} onClick={() => setCurrentFloorId(f.id)} className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm border shadow-sm transition-colors ${currentFloorId === f.id ? 'bg-[#c17a23] text-white border-[#c17a23]' : 'bg-white text-[#7a7266] border-[#e6e2da] hover:bg-gray-50'}`}>
-                                                {f.name}
-                                            </button>
-                                        ))}
+                                        {layout.floors.map(f => (<button key={f.id} onClick={() => setCurrentFloorId(f.id)} className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm border shadow-sm transition-colors ${currentFloorId === f.id ? 'bg-[#c17a23] text-white border-[#c17a23]' : 'bg-white text-[#7a7266] border-[#e6e2da] hover:bg-gray-50'}`}>{f.name}</button>))}
                                     </div>
                                     )}
                                 </div>
@@ -1335,9 +970,7 @@
                                 <div className="border-t border-[#e6e2da] pt-4">
                                     <div className="flex justify-between items-center mb-4">
                                     <h2 className="text-lg font-bold text-[#2d2822]">Zones</h2>
-                                    <button onClick={() => setIsManagingZones(!isManagingZones)} className={`text-xs px-3 py-1.5 rounded-lg border font-bold transition-colors ${isManagingZones ? 'bg-[#2d2822] text-white border-[#2d2822]' : 'bg-white text-[#7a7266] border-[#e6e2da]'}`}>
-                                        {isManagingZones ? 'Terminer' : 'Gérer'}
-                                    </button>
+                                    <button onClick={() => setIsManagingZones(!isManagingZones)} className={`text-xs px-3 py-1.5 rounded-lg border font-bold transition-colors ${isManagingZones ? 'bg-[#2d2822] text-white border-[#2d2822]' : 'bg-white text-[#7a7266] border-[#e6e2da]'}`}>{isManagingZones ? 'Terminer' : 'Gérer'}</button>
                                     </div>
 
                                     {isManagingZones ? (
@@ -1345,34 +978,22 @@
                                         <div className="flex flex-col gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                                             {layout.zones.map(z => (
                                                 <div key={z.id} className="flex justify-between items-center p-2 bg-white rounded-lg border border-[#e6e2da] shadow-sm">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-4 h-4 rounded-full border border-black/10" style={{backgroundColor: z.color}}></div>
-                                                        <span className="text-xs font-bold text-[#2d2822]">{z.name}</span>
-                                                    </div>
-                                                    <button onClick={() => deleteZone(z.id)} className="text-red-400 hover:text-red-600 transition-colors p-1">
-                                                        <i className="fas fa-trash-alt"></i>
-                                                    </button>
+                                                    <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full border border-black/10" style={{backgroundColor: z.color}}></div><span className="text-xs font-bold text-[#2d2822]">{z.name}</span></div>
+                                                    <button onClick={() => deleteZone(z.id)} className="text-red-400 hover:text-red-600 transition-colors p-1"><i className="fas fa-trash-alt"></i></button>
                                                 </div>
                                             ))}
                                         </div>
                                         <div className="flex gap-2 items-center mt-1 border-t border-[#e6e2da] pt-3">
                                             <input type="text" value={newZoneName} onChange={e => setNewZoneName(e.target.value)} placeholder="Nouvelle zone..." className="flex-grow p-2 border border-[#d6cfc2] rounded-lg text-xs font-bold outline-none focus:border-[#c17a23]" />
                                             <input type="color" value={newZoneColor} onChange={e => setNewZoneColor(e.target.value)} className="w-8 h-8 p-0 border-0 rounded cursor-pointer bg-transparent" />
-                                            <button onClick={addZone} className="p-2 bg-[#2d2822] text-white rounded-lg hover:bg-black transition-colors">
-                                                <i className="fas fa-plus"></i>
-                                            </button>
+                                            <button onClick={addZone} className="p-2 bg-[#2d2822] text-white rounded-lg hover:bg-black transition-colors"><i className="fas fa-plus"></i></button>
                                         </div>
                                     </div>
                                     ) : (
                                     <div className="flex flex-col gap-2">
                                         {layout.zones.map(zone => (
-                                        <button key={zone.id} onClick={() => { if(currentTool !== 'bucket' && currentTool !== 'zone') setCurrentTool('zone'); setSelectedZoneId(zone.id); }}
-                                            className={`w-full px-3 py-2 rounded-xl text-left font-bold text-sm border flex items-center justify-between shadow-sm transition-all ${
-                                            selectedZoneId === zone.id && (currentTool === 'zone' || currentTool === 'bucket') ? 'border-[#2d2822] bg-white text-[#2d2822]' : 'border-[#e6e2da] bg-[#f9f8f4] text-[#7a7266]'
-                                            }`}
-                                        >
-                                            <span>{zone.name}</span>
-                                            <div className="w-5 h-5 rounded border border-[#d6cfc2]" style={{ backgroundColor: zone.color }}></div>
+                                        <button key={zone.id} onClick={() => { if(currentTool !== 'bucket' && currentTool !== 'zone') setCurrentTool('zone'); setSelectedZoneId(zone.id); }} className={`w-full px-3 py-2 rounded-xl text-left font-bold text-sm border flex items-center justify-between shadow-sm transition-all ${selectedZoneId === zone.id && (currentTool === 'zone' || currentTool === 'bucket') ? 'border-[#2d2822] bg-white text-[#2d2822]' : 'border-[#e6e2da] bg-[#f9f8f4] text-[#7a7266]'}`}>
+                                            <span>{zone.name}</span><div className="w-5 h-5 rounded border border-[#d6cfc2]" style={{ backgroundColor: zone.color }}></div>
                                         </button>
                                         ))}
                                     </div>
@@ -1384,31 +1005,19 @@
                                     <div className="grid grid-cols-2 gap-2">
                                     <div className="flex flex-col bg-[#f9f8f4] p-1.5 rounded-xl border border-[#e6e2da]">
                                         <span className="text-[10px] font-bold text-[#7a7266] mb-1 text-center">HAUT</span>
-                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm">
-                                            <button onClick={() => modifyGrid('top', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button>
-                                            <button onClick={() => modifyGrid('top', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button>
-                                        </div>
+                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm"><button onClick={() => modifyGrid('top', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button><button onClick={() => modifyGrid('top', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button></div>
                                     </div>
                                     <div className="flex flex-col bg-[#f9f8f4] p-1.5 rounded-xl border border-[#e6e2da]">
                                         <span className="text-[10px] font-bold text-[#7a7266] mb-1 text-center">BAS</span>
-                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm">
-                                            <button onClick={() => modifyGrid('bottom', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button>
-                                            <button onClick={() => modifyGrid('bottom', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button>
-                                        </div>
+                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm"><button onClick={() => modifyGrid('bottom', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button><button onClick={() => modifyGrid('bottom', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button></div>
                                     </div>
                                     <div className="flex flex-col bg-[#f9f8f4] p-1.5 rounded-xl border border-[#e6e2da]">
                                         <span className="text-[10px] font-bold text-[#7a7266] mb-1 text-center">GAUCHE</span>
-                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm">
-                                            <button onClick={() => modifyGrid('left', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button>
-                                            <button onClick={() => modifyGrid('left', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button>
-                                        </div>
+                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm"><button onClick={() => modifyGrid('left', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button><button onClick={() => modifyGrid('left', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button></div>
                                     </div>
                                     <div className="flex flex-col bg-[#f9f8f4] p-1.5 rounded-xl border border-[#e6e2da]">
                                         <span className="text-[10px] font-bold text-[#7a7266] mb-1 text-center">DROITE</span>
-                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm">
-                                            <button onClick={() => modifyGrid('right', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button>
-                                            <button onClick={() => modifyGrid('right', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button>
-                                        </div>
+                                        <div className="flex bg-white border border-[#d6cfc2] rounded-lg shadow-sm"><button onClick={() => modifyGrid('right', -1)} className="flex-1 py-1 border-r text-center hover:bg-gray-50">-</button><button onClick={() => modifyGrid('right', 1)} className="flex-1 py-1 text-center hover:bg-gray-50">+</button></div>
                                     </div>
                                     </div>
                                 </div>
@@ -1419,37 +1028,22 @@
                                 <div>
                                     <h2 className="text-lg sm:text-xl font-bold text-[#2d2822] mb-3 sm:mb-6 text-center">Où aller ?</h2>
                                     <div className="mb-2 sm:mb-4">
-                                    <div className="text-4xl sm:text-6xl font-sans font-bold text-[#c17a23] bg-[#fffbf4] border border-[#c17a23] rounded-xl min-h-[60px] sm:min-h-[100px] flex items-center justify-center tracking-widest shadow-inner">
-                                        {targetTable || <span className="text-[#c17a23]/20">...</span>}
+                                    <div className="text-4xl sm:text-6xl font-sans font-bold text-[#c17a23] bg-[#fffbf4] border border-[#c17a23] rounded-xl min-h-[60px] sm:min-h-[100px] flex items-center justify-center tracking-widest shadow-inner">{targetTable || <span className="text-[#c17a23]/20">...</span>}</div>
                                     </div>
-                                    </div>
-                                    {pathMessage && (
-                                    <div className={`p-2 sm:p-4 mb-2 sm:mb-4 rounded-xl text-xs sm:text-sm font-bold text-center border ${
-                                        pathMessage.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#eef8ff] text-[#0369a1] border-[#bae6fd]'
-                                    }`}>
-                                        {pathMessage.text}
-                                    </div>
-                                    )}
+                                    {pathMessage && (<div className={`p-2 sm:p-4 mb-2 sm:mb-4 rounded-xl text-xs sm:text-sm font-bold text-center border ${pathMessage.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-[#eef8ff] text-[#0369a1] border-[#bae6fd]'}`}>{pathMessage.text}</div>)}
                                     {pathInstructions.length > 0 && (
                                     <div className="flex flex-col gap-2 max-h-[120px] sm:max-h-[200px] overflow-y-auto custom-scrollbar pr-2 animate-in fade-in">
                                         <h3 className="text-[10px] font-bold text-[#a59a8c] uppercase tracking-wider mb-1">Itinéraire détaillé</h3>
                                         {pathInstructions.map((step, idx) => (
-                                        <button key={idx} onClick={() => setCurrentFloorId(step.floorId)}
-                                            className={`text-left p-2 sm:p-3 rounded-xl text-xs sm:text-sm font-bold transition-all border flex items-center gap-2 sm:gap-3 shadow-sm ${
-                                            currentFloorId === step.floorId ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white text-[#7a7266]'
-                                            }`}
-                                        >
-                                            <div className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-white ${currentFloorId === step.floorId ? 'bg-[#c17a23]' : 'bg-[#d6cfc2]'}`}>{idx + 1}</div>
-                                            {step.text}
+                                        <button key={idx} onClick={() => setCurrentFloorId(step.floorId)} className={`text-left p-2 sm:p-3 rounded-xl text-xs sm:text-sm font-bold transition-all border flex items-center gap-2 sm:gap-3 shadow-sm ${currentFloorId === step.floorId ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white text-[#7a7266]'}`}>
+                                            <div className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-white ${currentFloorId === step.floorId ? 'bg-[#c17a23]' : 'bg-[#d6cfc2]'}`}>{idx + 1}</div>{step.text}
                                         </button>
                                         ))}
                                     </div>
                                     )}
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 mt-2 sm:mt-4">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                                    <button key={num} onClick={() => handleServiceNumpad(num.toString())} className="bg-white border border-[#e6e2da] active:bg-[#f4f2ec] text-[#2d2822] text-xl sm:text-2xl font-bold py-3 sm:py-5 rounded-xl shadow-sm transition-transform active:scale-95">{num}</button>
-                                    ))}
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (<button key={num} onClick={() => handleServiceNumpad(num.toString())} className="bg-white border border-[#e6e2da] active:bg-[#f4f2ec] text-[#2d2822] text-xl sm:text-2xl font-bold py-3 sm:py-5 rounded-xl shadow-sm transition-transform active:scale-95">{num}</button>))}
                                     <button onClick={() => handleServiceNumpad('C')} className="bg-[#f4f2ec] border border-[#e6e2da] text-[#7a7266] text-lg sm:text-xl font-bold py-3 sm:py-5 rounded-xl shadow-sm active:scale-95">CLR</button>
                                     <button onClick={() => handleServiceNumpad('0')} className="bg-white border border-[#e6e2da] text-[#2d2822] text-xl sm:text-2xl font-bold py-3 sm:py-5 rounded-xl shadow-sm active:scale-95">0</button>
                                     <button onClick={() => handleServiceNumpad('GO')} className="bg-[#c17a23] text-white text-lg sm:text-xl font-bold py-3 sm:py-5 rounded-xl shadow-sm active:scale-95">GO</button>
@@ -1464,6 +1058,16 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker enregistré !', reg))
+                    .catch(err => console.error('Erreur Service Worker :', err));
+            });
+        }
     </script>
 </body>
 </html>
