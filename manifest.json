@@ -1,7 +1,7 @@
 {
 "name": "DigiSAT - Salle",
 "short_name": "DigiSAT",
-"start_url": "./index.html",
+"start_url": "./",
 "display": "standalone",
 "background_color": "#f9f8f4",
 "theme_color": "#2d2822",
