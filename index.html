@@ -3,20 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- Balises Apple Web App (Pour l'iPhone) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DigiSAT">
+    
     <title>DigiSAT - Salle</title>
     
-    <!-- Icône pour iPhone / iPad (iOS) -->
-    <link rel="apple-touch-icon" href="icon.png">
-    
-    <!-- Icône pour Android & Navigateurs Web -->
-    <link rel="icon" type="image/png" href="icon.png">
-
-    <!-- Manifest PWA -->
-    <link rel="manifest" href="manifest.json">
+    <!-- FIX : Chemins relatifs explicites pour les icônes -->
+    <link rel="apple-touch-icon" href="./icon.png">
+    <link rel="icon" type="image/png" href="./icon.png">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#2d2822">
+
+    <!-- Police "Inter" (Identique à votre autre application) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS (Design) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     
     <!-- FontAwesome (Icônes) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -31,7 +49,6 @@
     <!-- FIREBASE (Imports CDN pour fichier unique) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
     <style>
         body { touch-action: none; overscroll-behavior: none; }
@@ -48,7 +65,7 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-        // VOS CLÉS FIREBASE (Mises à jour)
+        // VOS CLÉS FIREBASE
         const firebaseConfig = {
           apiKey: "AIzaSyB8VqGEdm5xpSiM1CTadsbN6ZDUVMg7OEM",
           authDomain: "restoplanmjo.firebaseapp.com",
@@ -58,10 +75,11 @@
           appId: "1:77400415439:web:bee9c8651f0acf23c6ebba",
           measurementId: "G-RGSEJPZJMJ"
         };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'restoplan-default';
+        
+        const appId = 'restoplan-default';
 
-        // Initialisation de Firebase Compat
-        const app = firebase.initializeApp(firebaseConfig);
+        // Initialisation de Firebase
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
         const TOOLS = {
@@ -172,16 +190,14 @@
 
             // Chargement depuis Firebase (Écoute en temps réel)
             useEffect(() => {
-                // Pas besoin de vérifier le "user" avec les règles ouvertes
                 const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('restaurant').doc('layout');
-                
                 const unsub = docRef.onSnapshot((docSnap) => {
                     if (docSnap.exists) {
                         const data = docSnap.data();
                         if (!data.cells || Object.keys(data.cells).length === 0) {
                             const emptyLayout = generateEmptyLayout();
                             setLayout(emptyLayout);
-                            docRef.set(emptyLayout).catch(e => console.error("Error setting initial layout", e));
+                            docRef.set(emptyLayout).catch(e => console.error(e));
                         } else {
                             setLayout(data);
                             if (data.floors && data.floors.length > 0 && !data.floors.find(f => f.id === currentFloorId)) {
@@ -191,7 +207,7 @@
                     } else {
                         const emptyLayout = generateEmptyLayout();
                         setLayout(emptyLayout);
-                        docRef.set(emptyLayout).catch(e => console.error("Error creating initial document", e));
+                        docRef.set(emptyLayout).catch(e => console.error(e));
                     }
                     setLoading(false);
                 }, (error) => {
@@ -201,7 +217,7 @@
                 return () => unsub();
             }, []);
 
-            // Sauvegarde vers Firebase
+            // Sauvegarde vers Firebase directe
             const saveLayout = useCallback((newLayout) => {
                 setLayout(newLayout);
                 if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -826,7 +842,7 @@
                     <header className="px-4 py-3 sm:px-8 sm:py-6 flex-shrink-0 z-10 bg-[#f9f8f4]">
                         <div className="flex justify-between items-center mb-2 sm:mb-4">
                             <div className="flex items-center gap-3">
-                                <img src="icon.png" alt="Logo" className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl shadow-sm object-cover" onError={(e) => e.target.style.display='none'} />
+                                <img src="./icon.png" alt="Logo" className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl shadow-sm object-cover" onError={(e) => e.target.style.display='none'} />
                                 <h1 className="text-xl sm:text-4xl font-bold tracking-tight">DigiSAT · Salle</h1>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2 bg-[#d1f4e0] text-[#0f766e] px-2 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold border border-[#a7f3d0]">
