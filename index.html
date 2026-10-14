@@ -7,24 +7,23 @@
     
     <title>DigiSAT - Salle</title>
     
-    <!-- Icône pour iPhone / iPad (iOS) -->
-    <link rel="apple-touch-icon" href="icon.png">
-    <!-- Icône pour Android & Navigateurs Web -->
-    <link rel="icon" type="image/png" href="icon.png">
+    <!-- Icônes (Les "./" forcent la recherche dans le même dossier) -->
+    <link rel="apple-touch-icon" href="./icon.png">
+    <link rel="icon" type="image/png" href="./icon.png">
     
-    <!-- Balises Apple Web App -->
+    <!-- Balises Apple Web App Strictes -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="DigiSAT">
     
-    <link rel="manifest" href="manifest.json">
+    <!-- Lien vers la "carte d'identité" de l'application -->
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#2d2822">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS (Design) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -49,7 +48,11 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
     <style>
-        body { touch-action: none; overscroll-behavior: none; }
+        body { 
+            font-family: 'Inter', sans-serif;
+            touch-action: none; 
+            overscroll-behavior: none; 
+        }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #d6cfc2; border-radius: 3px; }
@@ -74,7 +77,6 @@
         };
         const appId = 'restoplan-default';
 
-        // Initialisation de Firebase Compat
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
@@ -176,7 +178,6 @@
                 return () => { window.removeEventListener('resize', updateScale); clearTimeout(t); };
             }, [layout.floors, currentFloorId, layout.cols, layout.rows, rotation]);
 
-            // Plus de blocage d'authentification ici, connexion directe à la base ouverte !
             useEffect(() => {
                 const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('restaurant').doc('layout');
                 const unsub = docRef.onSnapshot((docSnap) => {
@@ -1063,7 +1064,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
+                navigator.serviceWorker.register('./service-worker.js')
                     .then(reg => console.log('Service Worker enregistré !', reg))
                     .catch(err => console.error('Erreur Service Worker :', err));
             });
