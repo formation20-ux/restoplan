@@ -38,14 +38,17 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-        const firebaseConfig = {
-          apiKey: "AIzaSyB8VqGEdm5xpSiM1CTadsbN6ZDUVMg7OEM",
-          authDomain: "restoplanmjo.firebaseapp.com",
-          projectId: "restoplanmjo",
-          storageBucket: "restoplanmjo.firebasestorage.app",
-          messagingSenderId: "77400415439",
-          appId: "1:77400415439:web:bee9c8651f0acf23c6ebba",
-          measurementId: "G-RGSEJPZJMJ"
+        // --- CONFIGURATION FIREBASE ---
+        // RAPPEL IMPORTANT : Si vous utilisez cette application sur votre propre hébergement (GitHub Pages),
+        // vous devrez remplacer ces variables par VOS propres identifiants Firebase.
+        // Dans cet environnement de test, j'utilise les variables d'environnement globales.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            // apiKey: "VOTRE_API_KEY",
+            // authDomain: "votre-projet.firebaseapp.com",
+            // projectId: "votre-projet",
+            // storageBucket: "votre-projet.appspot.com",
+            // messagingSenderId: "...",
+            // appId: "..."
         };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'restoplan-default';
 
@@ -197,8 +200,6 @@
 
             // Chargement depuis Firebase (Écoute en temps réel)
             useEffect(() => {
-                if (!user) return;
-                
                 // Chemin strict requis par les règles de sécurité
                 const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('restaurant').doc('layout');
                 
@@ -228,11 +229,10 @@
                     setLoading(false);
                 });
                 return () => unsub();
-            }, [user]); // Important: dépend de 'user' pour ne lancer la requête qu'une fois connecté
+            }, []);
 
             // Sauvegarde vers Firebase
             const saveLayout = useCallback((newLayout) => {
-                if (!user) return;
                 setLayout(newLayout);
                 if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                 saveTimeoutRef.current = setTimeout(async () => {
@@ -243,7 +243,7 @@
                         console.error("Save error:", error);
                     }
                 }, 500);
-            }, [user]);
+            }, []);
 
             const modifyGrid = useCallback((edge, change) => {
                 setLayout(prev => {
@@ -903,7 +903,7 @@
                                     <i className="fas fa-rotate-right"></i>
                                 </button>
                                 <div className="w-px bg-[#e6e2da] mx-0.5 sm:mx-1"></div>
-                                <button onClick={() => setZoom(z => Math.max(1, z - 0.2))} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold text-lg sm:text-xl transition-colors">-</button>
+                                <button onClick={() => setZoom(z => Math.max(0.5, z - 0.2))} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold text-lg sm:text-xl transition-colors">-</button>
                                 <div className="w-12 sm:w-16 flex items-center justify-center font-bold text-[#2d2822] text-xs sm:text-sm">{Math.round(zoom * 100)}%</div>
                                 <button onClick={() => setZoom(z => Math.min(4, z + 0.2))} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold text-lg sm:text-xl transition-colors">+</button>
                             </div>
