@@ -869,29 +869,46 @@
                                                                     let bgStyle = { top: 0, left: 0, right: mergeRight ? '-1.5px' : '0', bottom: mergeBottom ? '-1.5px' : '0' };
                                                                     
                                                                     if (cellData.type === 'table') { 
+                                                                        const isSame = (c) => c?.type === 'table' && c.tableId === cellData.tableId;
+                                                                        const rT = isSame(topCell), rB = isSame(bottomCell), rL = isSame(leftCell), rR = isSame(rightCell);
+                                                                        
+                                                                        // Marge pour réduire la taille de la table, ou déborder (-1px) pour cacher les traits si fusion
+                                                                        bgStyle.top = rT ? '-1px' : '3px';
+                                                                        bgStyle.bottom = rB ? '-1px' : '3px';
+                                                                        bgStyle.left = rL ? '-1px' : '3px';
+                                                                        bgStyle.right = rR ? '-1px' : '3px';
+                                                                        bgStyle.borderRadius = '6px'; 
+                                                                        
+                                                                        if (rT) { bgStyle.borderTopLeftRadius = '0'; bgStyle.borderTopRightRadius = '0'; }
+                                                                        if (rB) { bgStyle.borderBottomLeftRadius = '0'; bgStyle.borderBottomRightRadius = '0'; }
+                                                                        if (rL) { bgStyle.borderTopLeftRadius = '0'; bgStyle.borderBottomLeftRadius = '0'; }
+                                                                        if (rR) { bgStyle.borderTopRightRadius = '0'; bgStyle.borderBottomRightRadius = '0'; }
+                                                                        
+                                                                        if (cellData.isRound) {
+                                                                            if (!rT && !rB && !rL && !rR) { bgStyle.borderRadius = '50%'; } 
+                                                                            else {
+                                                                                bgStyle.borderTopLeftRadius = (!rT && !rL) ? '100%' : '0'; bgStyle.borderTopRightRadius = (!rT && !rR) ? '100%' : '0';
+                                                                                bgStyle.borderBottomLeftRadius = (!rB && !rL) ? '100%' : '0'; bgStyle.borderBottomRightRadius = (!rB && !rR) ? '100%' : '0';
+                                                                            }
+                                                                        }
+                                                                        
                                                                         if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = 'brightness(0.85)'; } 
-                                                                    } else if (['chair', 'stool'].includes(cellData.type)) {
-                                                                        // FIX : Chaises et Tabourets : Fond transparent pour la case
+                                                                        bgStyle.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.15)';
+                                                                    } 
+                                                                    else if (['chair', 'stool'].includes(cellData.type)) {
+                                                                        // Chaises et Tabourets : Fond de la case totalement transparent
                                                                         bgColorClass = 'bg-transparent'; bgStyle.backgroundColor = 'transparent'; bgStyle.boxShadow = 'none';
                                                                     }
-                                                                    
-                                                                    if (cellData.type === 'wall' || cellData.type === 'stairs') { bgColorClass = 'bg-stone-600'; bgStyle.backgroundColor = ''; bgStyle.filter = 'none'; }
-                                                                    if (cellData.type === 'table' && cellData.isRound) {
-                                                                        const isSameRound = (c) => c?.type === 'table' && c.isRound && c.tableId === cellData.tableId;
-                                                                        const rHasT = isSameRound(topCell), rHasB = isSameRound(bottomCell), rHasL = isSameRound(leftCell), rHasR = isSameRound(rightCell);
-                                                                        if (!rHasT && !rHasB && !rHasL && !rHasR) { bgStyle.borderRadius = '50%'; bgStyle.top = '2px'; bgStyle.bottom = '2px'; bgStyle.left = '2px'; bgStyle.right = '2px'; } 
-                                                                        else {
-                                                                            bgStyle.borderTopLeftRadius = (!rHasT && !rHasL) ? '100%' : '0'; bgStyle.borderTopRightRadius = (!rHasT && !rHasR) ? '100%' : '0';
-                                                                            bgStyle.borderBottomLeftRadius = (!rHasB && !rHasL) ? '100%' : '0'; bgStyle.borderBottomRightRadius = (!rHasB && !rHasR) ? '100%' : '0';
-                                                                            bgStyle.top = rHasT ? '0' : '2px'; bgStyle.bottom = rHasB ? '0' : '2px'; bgStyle.left = rHasL ? '0' : '2px'; bgStyle.right = rHasR ? '0' : '2px';
-                                                                        }
+                                                                    else {
+                                                                        if (cellData.type === 'wall' || cellData.type === 'stairs') { bgColorClass = 'bg-stone-600'; bgStyle.backgroundColor = ''; bgStyle.filter = 'none'; }
+                                                                        bgStyle.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.1)';
                                                                     }
-                                                                    if (!['chair', 'stool'].includes(cellData.type)) { bgStyle.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.1)'; }
                                                                     
                                                                     return (
                                                                         <div className={`absolute z-10 ${bgColorClass}`} style={bgStyle}>
                                                                             {cellData.type === 'chair' && (
                                                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                                    {/* L'assombrissement (brightness) ne s'applique que sur le dessin de la chaise, pas sur la case */}
                                                                                     <div className="w-[60%] h-[60%] rounded shadow-sm border border-black/20"
                                                                                          style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.85)' : 'none' }}></div>
                                                                                 </div>
@@ -918,14 +935,25 @@
                                                                     const hasR = rightCell?.type === 'play';
                                                                     const playColor = '#14b8a6';
                                                                     return (
-                                                                        <div className="absolute inset-0 pointer-events-none z-10" style={{
-                                                                            backgroundColor: 'rgba(20, 184, 166, 0.15)',
-                                                                            borderTop: hasT ? 'none' : `2px dashed ${playColor}`,
-                                                                            borderBottom: hasB ? 'none' : `2px dashed ${playColor}`,
-                                                                            borderLeft: hasL ? 'none' : `2px dashed ${playColor}`,
-                                                                            borderRight: hasR ? 'none' : `2px dashed ${playColor}`,
+                                                                        <div className="absolute pointer-events-none z-10" style={{
+                                                                            backgroundColor: 'rgba(20, 184, 166, 0.25)',
+                                                                            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 2px, transparent 2px)',
+                                                                            backgroundSize: '12px 12px',
+                                                                            borderTop: hasT ? 'none' : `2.5px solid ${playColor}`,
+                                                                            borderBottom: hasB ? 'none' : `2.5px solid ${playColor}`,
+                                                                            borderLeft: hasL ? 'none' : `2.5px solid ${playColor}`,
+                                                                            borderRight: hasR ? 'none' : `2.5px solid ${playColor}`,
+                                                                            borderTopLeftRadius: (!hasT && !hasL) ? '12px' : '0',
+                                                                            borderTopRightRadius: (!hasT && !hasR) ? '12px' : '0',
+                                                                            borderBottomLeftRadius: (!hasB && !hasL) ? '12px' : '0',
+                                                                            borderBottomRightRadius: (!hasB && !hasR) ? '12px' : '0',
+                                                                            top: hasT ? '-1px' : '2px',
+                                                                            bottom: hasB ? '-1px' : '2px',
+                                                                            left: hasL ? '-1px' : '2px',
+                                                                            right: hasR ? '-1px' : '2px',
+                                                                            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
                                                                         }}>
-                                                                            {!hasT && !hasB && !hasL && !hasR && <div className="w-full h-full flex items-center justify-center"><i className="fas fa-shapes" style={{color: playColor, opacity: 0.6, fontSize: 16}}></i></div>}
+                                                                            {!hasT && !hasB && !hasL && !hasR && <div className="w-full h-full flex items-center justify-center"><i className="fas fa-shapes" style={{color: playColor, opacity: 0.9, fontSize: 18}}></i></div>}
                                                                         </div>
                                                                     );
                                                                 })()}
