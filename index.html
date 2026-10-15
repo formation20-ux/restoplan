@@ -2,10 +2,10 @@
 <html lang="fr">
 <head>
     <!-- Icône pour iPhone / iPad (iOS) -->
-    <link rel="apple-touch-icon" href="icon.png?v=555">
+    <link rel="apple-touch-icon" href="./icon.png?v=555">
     
     <!-- Icône pour Android & Navigateurs Web -->
-    <link rel="icon" type="image/png" href="icon.png?v=555">
+    <link rel="icon" type="image/png" href="./icon.png?v=555">
     
     <meta name="format-detection" content="telephone=no">
     <meta charset="utf-8">
@@ -19,7 +19,7 @@
     <meta name="apple-mobile-web-app-title" content="DigiSAT">
     
     <!-- Lien vers la "carte d'identité" de l'application -->
-    <link rel="manifest" href="manifest.json?v=555">
+    <link rel="manifest" href="./manifest.json?v=555">
     <meta name="theme-color" content="#2d2822">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,7 +81,6 @@
 
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        const auth = firebase.auth();
 
         const TOOLS = {
             PAN: { id: 'pan', name: 'Déplacer', icon: 'fas fa-hand', color: 'bg-transparent' },
@@ -394,9 +393,19 @@
                         newLayout.cells[cellKey] = { ...currentCell, type: 'stairs', stairId: activeStairId.toUpperCase(), tableId: null, orientation: null, benchId: null };
                     } else if (currentTool === 'bench') {
                         if (isDrag) return prevLayout;
-                        const adjacentBench = [ {dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0} ].map(d => prevLayout.cells[`${floorId}:${x+d.dx}:${y+d.dy}`]).find(c => c?.type === 'bench' && c.benchId);
-                        if (adjacentBench) {
-                            setBenchMergePrompt({ x, y, floorId, adjacentBenchId: adjacentBench.benchId }); return prevLayout;
+                        
+                        // Chercher tous les bancs adjacents
+                        const adj = [];
+                        if (prevLayout.cells[`${floorId}:${x}:${y-1}`]?.benchId) adj.push({ dir: 'Haut', id: prevLayout.cells[`${floorId}:${x}:${y-1}`].benchId });
+                        if (prevLayout.cells[`${floorId}:${x}:${y+1}`]?.benchId) adj.push({ dir: 'Bas', id: prevLayout.cells[`${floorId}:${x}:${y+1}`].benchId });
+                        if (prevLayout.cells[`${floorId}:${x-1}:${y}`]?.benchId) adj.push({ dir: 'Gauche', id: prevLayout.cells[`${floorId}:${x-1}:${y}`].benchId });
+                        if (prevLayout.cells[`${floorId}:${x+1}:${y}`]?.benchId) adj.push({ dir: 'Droite', id: prevLayout.cells[`${floorId}:${x+1}:${y}`].benchId });
+                        
+                        if (adj.length > 0) {
+                            // Supprimer les doublons d'ID (cas en U)
+                            const uniqueAdj = Array.from(new Map(adj.map(item => [item.id, item])).values());
+                            setBenchMergePrompt({ x, y, floorId, options: uniqueAdj });
+                            return prevLayout;
                         } else {
                             if (currentCell.type === 'start') newLayout.startPos = null;
                             newLayout.cells[cellKey] = { ...currentCell, type: 'bench', benchId: Date.now().toString(), tableId: null, stairId: null, orientation: null };
@@ -460,15 +469,15 @@
                 }
             };
 
-            const handleBenchMergeDecision = (merge) => {
+            const handleBenchMergeDecision = (mergeBenchId) => {
                 if (!benchMergePrompt) return;
-                const { x, y, floorId, adjacentBenchId } = benchMergePrompt;
+                const { x, y, floorId } = benchMergePrompt;
                 setLayout(prevLayout => {
                     const cellKey = `${floorId}:${x}:${y}`;
                     const newLayout = { ...prevLayout, cells: { ...prevLayout.cells } };
                     const currentCell = newLayout.cells[cellKey] || {};
                     if (currentCell.type === 'start') newLayout.startPos = null;
-                    newLayout.cells[cellKey] = { ...currentCell, type: 'bench', benchId: merge ? adjacentBenchId : Date.now().toString(), tableId: null, stairId: null, orientation: null };
+                    newLayout.cells[cellKey] = { ...currentCell, type: 'bench', benchId: mergeBenchId || Date.now().toString(), tableId: null, stairId: null, orientation: null };
                     saveLayout(newLayout); return newLayout;
                 });
                 setBenchMergePrompt(null);
@@ -688,14 +697,20 @@
 
                     {benchMergePrompt && (
                         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-xl max-w-sm w-full border border-[#e6e2da]">
-                            <h3 className="text-lg sm:text-xl font-bold text-[#2d2822] mb-2 text-center">Fusionner les bancs ?</h3>
-                            <p className="text-[#7a7266] text-xs sm:text-sm text-center mb-6">Voulez-vous lier ces bancs pour créer une banquette continue ?</p>
-                            <div className="flex gap-3">
-                            <button onClick={() => handleBenchMergeDecision(false)} className="flex-1 py-2 sm:py-3 rounded-xl border border-[#e6e2da] bg-[#f9f8f4] text-[#7a7266] font-bold text-sm sm:text-base hover:bg-[#f4f2ec]">Non, séparés</button>
-                            <button onClick={() => handleBenchMergeDecision(true)} className="flex-1 py-2 sm:py-3 rounded-xl bg-[#c17a23] text-white font-bold text-sm sm:text-base hover:bg-[#a6681e] shadow-md">Oui, fusionner</button>
+                            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-xl max-w-sm w-full border border-[#e6e2da]">
+                                <h3 className="text-lg sm:text-xl font-bold text-[#2d2822] mb-2 text-center">Fusionner le banc</h3>
+                                <p className="text-[#7a7266] text-xs sm:text-sm text-center mb-4">Avec quel banc existant voulez-vous le lier ?</p>
+                                <div className="flex flex-col gap-2">
+                                    {benchMergePrompt.options.map(opt => (
+                                        <button key={opt.id} onClick={() => handleBenchMergeDecision(opt.id)} className="w-full py-2.5 rounded-xl bg-[#c17a23] text-white font-bold text-sm sm:text-base hover:bg-[#a6681e] shadow-md transition-colors">
+                                            Lier avec le banc du {opt.dir}
+                                        </button>
+                                    ))}
+                                    <button onClick={() => handleBenchMergeDecision(null)} className="w-full py-2.5 mt-2 rounded-xl border border-[#e6e2da] bg-[#f9f8f4] text-[#7a7266] font-bold text-sm sm:text-base hover:bg-[#f4f2ec] transition-colors">
+                                        Ne pas lier (Rester séparé)
+                                    </button>
+                                </div>
                             </div>
-                        </div>
                         </div>
                     )}
 
@@ -814,8 +829,8 @@
                                                     const fontSizePx = Math.max(14, Math.min(45, z.radius * 12 + 10));
                                                     return (
                                                         <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(1 / floorCols) * 100}%`, height: `${(1 / floorRows) * 100}%` }}>
-                                                            <div className="absolute top-1/2 left-1/2 flex items-center justify-center transition-transform duration-300" style={{ transform: `translate(-50%, -50%) rotate(${-rotation}deg)` }}>
-                                                                <span className="font-black uppercase whitespace-nowrap text-center" style={{ color: z.color, fontSize: `${fontSizePx}px`, letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)', opacity: 0.95 }}>{z.name}</span>
+                                                            <div className="absolute top-1/2 left-1/2 flex items-center justify-center transition-transform duration-300 w-full" style={{ transform: `translate(-50%, -50%) rotate(${-rotation}deg)` }}>
+                                                                <span className="font-black uppercase text-center" style={{ color: z.color, fontSize: `${fontSizePx}px`, lineHeight: '1.1', maxWidth: `${(z.radius * 2 + 1.5) * 40}px`, wordWrap: 'break-word', letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)', opacity: 0.95 }}>{z.name}</span>
                                                             </div>
                                                         </div>
                                                     );
@@ -842,7 +857,7 @@
                                                                 {cellData?.type && TOOLS[cellData.type.toUpperCase()] && !['kiosk', 'bench', 'trash'].includes(cellData.type) && (() => {
                                                                     let bgColorClass = TOOLS[cellData.type.toUpperCase()]?.color;
                                                                     let bgStyle = { top: 0, left: 0, right: mergeRight ? '-1.5px' : '0', bottom: mergeBottom ? '-1.5px' : '0' };
-                                                                    if (['table', 'chair', 'stool'].includes(cellData.type)) { if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = 'brightness(0.7) saturate(1.5)'; } }
+                                                                    if (['table', 'chair', 'stool'].includes(cellData.type)) { if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = 'brightness(0.85)'; } }
                                                                     if (cellData.type === 'wall' || cellData.type === 'stairs') { bgColorClass = 'bg-stone-600'; bgStyle.backgroundColor = ''; bgStyle.filter = 'none'; }
                                                                     if (cellData.type === 'table' && cellData.isRound) {
                                                                         const isSameRound = (c) => c?.type === 'table' && c.isRound && c.tableId === cellData.tableId;
@@ -858,8 +873,8 @@
                                                                     return (
                                                                         <div className={`absolute z-10 ${bgColorClass}`} style={bgStyle}>
                                                                             {['door', 'eraser'].includes(cellData.type) && <div className="w-full h-full flex items-center justify-center pointer-events-none opacity-40 text-white"><i className={TOOLS[cellData.type.toUpperCase()].icon} style={{ fontSize: 14, transform: `rotate(${-rotation}deg)` }}></i></div>}
-                                                                            {cellData.type === 'chair' && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-[60%] h-[60%] rounded shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.7) saturate(1.5)' : 'none' }}></div></div>}
-                                                                            {cellData.type === 'stool' && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-[50%] h-[50%] rounded-full shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.7) saturate(1.5)' : 'none' }}></div></div>}
+                                                                            {cellData.type === 'chair' && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-[60%] h-[60%] rounded shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.85)' : 'none' }}></div></div>}
+                                                                            {cellData.type === 'stool' && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-[50%] h-[50%] rounded-full shadow-sm border border-black/20" style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.85)' : 'none' }}></div></div>}
                                                                         </div>
                                                                     );
                                                                 })()}
@@ -1064,15 +1079,12 @@
     </script>
 
     <script>
-        // On vérifie qu'on est sur un vrai site (http ou https) avant de lancer le Service Worker
         if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
                     .then(reg => console.log('Service Worker enregistré !', reg))
                     .catch(err => console.error('Erreur Service Worker :', err));
             });
-        } else {
-            console.log('Service Worker ignoré (environnement de test).');
         }
     </script>
 </body>
