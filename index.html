@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <!-- Icône pour iPhone / iPad (iOS) -->
-    <link rel="apple-touch-icon" href="./icon.png?v=555">
-    
-    <!-- Icône pour Android & Navigateurs Web -->
-    <link rel="icon" type="image/png" href="./icon.png?v=555">
+    <!-- FIX : Forcer le chemin exact avec "./" pour iOS -->
+    <link rel="apple-touch-icon" href="./icon.png">
+    <link rel="icon" type="image/png" href="./icon.png">
+    <link rel="manifest" href="./manifest.json">
     
     <meta name="format-detection" content="telephone=no">
     <meta charset="utf-8">
@@ -18,10 +17,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="DigiSAT">
     
-    <!-- Lien vers la "carte d'identité" de l'application -->
-    <link rel="manifest" href="./manifest.json?v=555">
     <meta name="theme-color" content="#2d2822">
 
+    <!-- Police Inter pour avoir le même rendu que "Contrôle Nettoyage" -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -685,6 +683,7 @@
                             if (c.y > maxY) maxY = c.y;
                         });
 
+                        // Limiter la largeur du texte pour qu'elle ne dépasse pas les dimensions réelles de la zone
                         zonesLabels.push({ id, name: zData.name, color: zData.color, x: bestCell.x, y: bestCell.y, radius: maxDist, size: cells.length, w: (maxX - minX + 1), h: (maxY - minY + 1) });
                     }
                     return zonesLabels;
@@ -784,7 +783,6 @@
 
                             <div className="mb-2 sm:mb-4 text-[#2d2822] font-bold text-sm sm:text-xl uppercase tracking-wide">Plan - {currentFloor?.name}</div>
 
-                            {/* Map Area */}
                             <div ref={mapContainerRef} 
                                 className={`w-full flex-1 overflow-auto custom-scrollbar p-0 bg-[#faf9f7] rounded-xl border border-[#e6e2da] inner-shadow relative ${mode === 'edit' && currentTool !== 'pan' ? 'touch-none' : ''}`}
                                 style={{ cursor: (currentTool === 'pan' || mode === 'service') ? 'grab' : 'crosshair' }}
@@ -836,11 +834,12 @@
 
                                             <div className="absolute inset-0 pointer-events-none z-[5]">
                                                 {floorGroups.zones.map(z => {
-                                                    const fontSizePx = Math.max(11, Math.min(26, z.radius * 8 + 8));
+                                                    const fontSizePx = Math.max(12, Math.min(22, z.radius * 6 + 10));
+                                                    // FIX : Largeur maximale fixée à la taille réelle de la zone (z.w * 40) pour éviter le débordement
                                                     return (
                                                         <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(1 / floorCols) * 100}%`, height: `${(1 / floorRows) * 100}%` }}>
                                                             <div className="absolute top-1/2 left-1/2 flex items-center justify-center transition-transform duration-300 w-full" style={{ transform: `translate(-50%, -50%) rotate(${-rotation}deg)` }}>
-                                                                <span className="font-black uppercase text-center" style={{ color: z.color, fontSize: `${fontSizePx}px`, lineHeight: '1.1', maxWidth: `${z.w * 40 * 0.9}px`, textWrap: 'balance', wordWrap: 'break-word', letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)', opacity: 0.95 }}>{z.name}</span>
+                                                                <span className="font-black uppercase text-center leading-[1.1] opacity-95" style={{ color: z.color, fontSize: `${fontSizePx}px`, maxWidth: `${z.w * 40 * 0.95}px`, textWrap: 'balance', wordWrap: 'break-word', letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)' }}>{z.name}</span>
                                                             </div>
                                                         </div>
                                                     );
@@ -857,13 +856,14 @@
                                                         const leftCell = layout.cells[`${currentFloorId}:${x-1}:${y}`];
                                                         const topCell = layout.cells[`${currentFloorId}:${x}:${y-1}`];
                                                         
-                                                        const mergeRight = cellData && rightCell && cellData.type === rightCell.type && (cellData.type === 'wall' || cellData.type === 'trash' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === rightCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === rightCell.stairId));
-                                                        const mergeBottom = cellData && bottomCell && cellData.type === bottomCell.type && (cellData.type === 'wall' || cellData.type === 'trash' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === bottomCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === bottomCell.stairId));
+                                                        const mergeRight = cellData && rightCell && cellData.type === rightCell.type && (cellData.type === 'wall' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === rightCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === rightCell.stairId));
+                                                        const mergeBottom = cellData && bottomCell && cellData.type === bottomCell.type && (cellData.type === 'wall' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === bottomCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === bottomCell.stairId));
                                                         const isPath = path.some(p => p.floorId === currentFloorId && p.x === x && p.y === y);
                                                         const zColor = cellData?.zoneId ? layout.zones.find(z => z.id === cellData.zoneId)?.color : null;
 
                                                         return (
                                                             <div key={cellKey} className="relative w-full h-full" onPointerDown={(e) => { if (currentTool === 'pan' || mode === 'service') return; e.preventDefault(); handlePointerDown(x, y); }} onPointerEnter={(e) => { if (currentTool === 'pan' || mode === 'service') return; e.preventDefault(); handlePointerEnter(x, y); }}>
+                                                                
                                                                 {cellData?.type && TOOLS[cellData.type.toUpperCase()] && !['kiosk', 'bench', 'trash', 'play'].includes(cellData.type) && (() => {
                                                                     let bgColorClass = TOOLS[cellData.type.toUpperCase()]?.color;
                                                                     let bgStyle = { top: 0, left: 0, right: mergeRight ? '-1.5px' : '0', bottom: mergeBottom ? '-1.5px' : '0' };
@@ -871,7 +871,8 @@
                                                                     if (cellData.type === 'table') { 
                                                                         if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = 'brightness(0.85)'; } 
                                                                     } else if (['chair', 'stool'].includes(cellData.type)) {
-                                                                        bgColorClass = 'bg-transparent'; bgStyle.backgroundColor = 'transparent';
+                                                                        // FIX : Chaises et Tabourets : Fond transparent pour la case
+                                                                        bgColorClass = 'bg-transparent'; bgStyle.backgroundColor = 'transparent'; bgStyle.boxShadow = 'none';
                                                                     }
                                                                     
                                                                     if (cellData.type === 'wall' || cellData.type === 'stairs') { bgColorClass = 'bg-stone-600'; bgStyle.backgroundColor = ''; bgStyle.filter = 'none'; }
@@ -885,10 +886,29 @@
                                                                             bgStyle.top = rHasT ? '0' : '2px'; bgStyle.bottom = rHasB ? '0' : '2px'; bgStyle.left = rHasL ? '0' : '2px'; bgStyle.right = rHasR ? '0' : '2px';
                                                                         }
                                                                     }
-                                                                    bgStyle.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.1)';
+                                                                    if (!['chair', 'stool'].includes(cellData.type)) { bgStyle.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.1)'; }
+                                                                    
                                                                     return (
                                                                         <div className={`absolute z-10 ${bgColorClass}`} style={bgStyle}>
-                                                                    {hasB && hasL && !hasBL && <div className="absolute" style={{ top: '84%', bottom: 0, left: 0, right: '84%', background: `radial-gradient(circle at bottom left, transparent 6px, ${zColor} 6px)` }} />}{hasB && hasR && !hasBR && <div className="absolute" style={{ top: '84%', bottom: 0, left: '84%', right: 0, background: `radial-gradient(circle at bottom right, transparent 6px, ${zColor} 6px)` }} />}</div></div>);
+                                                                            {cellData.type === 'chair' && (
+                                                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                                    <div className="w-[60%] h-[60%] rounded shadow-sm border border-black/20"
+                                                                                         style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.85)' : 'none' }}></div>
+                                                                                </div>
+                                                                            )}
+                                                                            {cellData.type === 'stool' && (
+                                                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                                    <div className="w-[50%] h-[50%] rounded-full shadow-sm border border-black/20"
+                                                                                         style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.85)' : 'none' }}></div>
+                                                                                </div>
+                                                                            )}
+                                                                            {cellData.type === 'door' && (
+                                                                                 <div className="w-full h-full flex items-center justify-center pointer-events-none opacity-40">
+                                                                                     <i className="fas fa-door-open text-white transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}></i>
+                                                                                 </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
                                                                 })()}
 
                                                                 {cellData?.type === 'play' && (() => {
@@ -905,7 +925,74 @@
                                                                             borderLeft: hasL ? 'none' : `2px dashed ${playColor}`,
                                                                             borderRight: hasR ? 'none' : `2px dashed ${playColor}`,
                                                                         }}>
-                                                                            {!hasT && !hasB && !hasL && !hasR && <div className="w-full h-full flex items-center justify-center"><i className="fas fa-shapes" style={{color: playColor, opacity: 0.6, fontSize: 14}}></i></div>}
+                                                                            {!hasT && !hasB && !hasL && !hasR && <div className="w-full h-full flex items-center justify-center"><i className="fas fa-shapes" style={{color: playColor, opacity: 0.6, fontSize: 16}}></i></div>}
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                                
+                                                                {cellData?.type === 'trash' && (() => {
+                                                                    const hasT = topCell?.type === 'trash', hasB = bottomCell?.type === 'trash', hasL = leftCell?.type === 'trash', hasR = rightCell?.type === 'trash';
+                                                                    const isIsolated = !hasT && !hasB && !hasL && !hasR;
+                                                                    const isHoriz = hasL || hasR;
+                                                                    const isVert = (hasT || hasB) && !isHoriz;
+                                                                    const dir = isVert ? 'vert' : 'horiz';
+
+                                                                    const renderGrey = (isFull) => (<div className={`${isFull ? 'w-full h-full' : (dir === 'vert' ? 'w-full h-1/2 border-b-[1.5px]' : 'w-1/2 h-full border-r-[1.5px]')} bg-[#525252] border-[#1a1a1a] flex ${dir === 'vert' ? 'flex-col' : 'flex-row'} items-center justify-center gap-[15%]`}><div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div><div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div><div className={`${dir === 'vert' ? 'h-[12%] w-[45%]' : 'w-[12%] h-[45%]'} bg-[#1a1a1a] rounded-sm`}></div></div>);
+                                                                    const renderBrown = (isFull) => (<div className={`${isFull ? 'w-full h-full' : (dir === 'vert' ? 'w-full h-1/2' : 'w-1/2 h-full')} bg-[#cdae6b] flex items-center justify-center relative`}><div className={`${isFull ? 'w-[75%] h-[75%]' : 'w-[60%] h-[60%]'} rounded-full border-[1.5px] border-[#1a1a1a] flex flex-col items-center justify-center gap-[12%]`}><div className="w-[25%] h-[25%] bg-[#1a1a1a] rounded-full"></div><div className="w-[40%] h-[15%] bg-[#1a1a1a] rounded-full"></div></div></div>);
+
+                                                                    let tBgStyle = { backgroundColor: '#f9f8f4', borderRadius: '5px', boxShadow: 'inset 0 0 0 1.5px #1a1a1a', overflow: 'hidden', top: 0, left: 0, bottom: (bottomCell?.type === 'trash') ? '-1.5px' : '0', right: (rightCell?.type === 'trash') ? '-1.5px' : '0' };
+                                                                    if (rightCell?.type === 'trash') { tBgStyle.borderTopRightRadius = '0'; tBgStyle.borderBottomRightRadius = '0'; }
+                                                                    if (bottomCell?.type === 'trash') { tBgStyle.borderBottomLeftRadius = '0'; tBgStyle.borderBottomRightRadius = '0'; }
+                                                                    if (leftCell?.type === 'trash') { tBgStyle.borderTopLeftRadius = '0'; tBgStyle.borderBottomLeftRadius = '0'; }
+                                                                    if (topCell?.type === 'trash') { tBgStyle.borderTopLeftRadius = '0'; tBgStyle.borderTopRightRadius = '0'; }
+
+                                                                    return (
+                                                                        <div className="absolute z-10" style={tBgStyle}>
+                                                                            {isIsolated ? (<div className={`w-full h-full flex ${dir === 'vert' ? 'flex-col' : 'flex-row'} pointer-events-none opacity-95`}>{renderGrey(false)}{renderBrown(false)}</div>) : isHoriz ? (<div className="w-full h-full flex pointer-events-none opacity-95">{!hasL ? renderGrey(true) : renderBrown(true)}</div>) : (<div className="w-full h-full flex pointer-events-none opacity-95">{!hasT ? renderGrey(true) : renderBrown(true)}</div>)}
+                                                                        </div>
+                                                                    );
+                                                                })()}
+
+                                                                {cellData?.type === 'bench' && (() => {
+                                                                    const hasL = cellData.benchId === leftCell?.benchId;
+                                                                    const hasT = cellData.benchId === topCell?.benchId;
+                                                                    const hasR = cellData.benchId === rightCell?.benchId;
+                                                                    const hasB = cellData.benchId === bottomCell?.benchId;
+                                                                    
+                                                                    const hasTL = cellData.benchId === layout.cells[`${currentFloorId}:${x-1}:${y-1}`]?.benchId;
+                                                                    const hasTR = cellData.benchId === layout.cells[`${currentFloorId}:${x+1}:${y-1}`]?.benchId;
+                                                                    const hasBL = cellData.benchId === layout.cells[`${currentFloorId}:${x-1}:${y+1}`]?.benchId;
+                                                                    const hasBR = cellData.benchId === layout.cells[`${currentFloorId}:${x+1}:${y+1}`]?.benchId;
+
+                                                                    const zColor = cellData.zoneId ? layout.zones.find(z => z.id === cellData.zoneId)?.color : '#a59a8c';
+
+                                                                    return (
+                                                                        <div className="absolute inset-0 pointer-events-none z-10 drop-shadow-md">
+                                                                            <div className="w-full h-full absolute" style={{ filter: 'brightness(0.85)' }}>
+                                                                                <div className="absolute" style={{
+                                                                                    backgroundColor: zColor,
+                                                                                    top: '15%', bottom: '15%', left: '15%', right: '15%',
+                                                                                    borderTopLeftRadius: (!hasT && !hasL) ? '12px' : '0',
+                                                                                    borderTopRightRadius: (!hasT && !hasR) ? '12px' : '0',
+                                                                                    borderBottomLeftRadius: (!hasB && !hasL) ? '12px' : '0',
+                                                                                    borderBottomRightRadius: (!hasB && !hasR) ? '12px' : '0',
+                                                                                }} />
+                                                                                
+                                                                                {hasT && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: '15%', right: '15%' }} />}
+                                                                                {hasB && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: '15%', right: '15%' }} />}
+                                                                                {hasL && <div className="absolute" style={{ backgroundColor: zColor, top: '15%', bottom: '15%', left: 0, right: '84%' }} />}
+                                                                                {hasR && <div className="absolute" style={{ backgroundColor: zColor, top: '15%', bottom: '15%', left: '84%', right: 0 }} />}
+                                                                                
+                                                                                {hasT && hasL && hasTL && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: 0, right: '84%' }} />}
+                                                                                {hasT && hasR && hasTR && <div className="absolute" style={{ backgroundColor: zColor, top: 0, bottom: '84%', left: '84%', right: 0 }} />}
+                                                                                {hasB && hasL && hasBL && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: 0, right: '84%' }} />}
+                                                                                {hasB && hasR && hasBR && <div className="absolute" style={{ backgroundColor: zColor, top: '84%', bottom: 0, left: '84%', right: 0 }} />}
+
+                                                                                {hasT && hasL && !hasTL && <div className="absolute" style={{ top: 0, bottom: '84%', left: 0, right: '84%', background: `radial-gradient(circle at top left, transparent 6px, ${zColor} 6px)` }} />}
+                                                                                {hasT && hasR && !hasTR && <div className="absolute" style={{ top: 0, bottom: '84%', left: '84%', right: 0, background: `radial-gradient(circle at top right, transparent 6px, ${zColor} 6px)` }} />}
+                                                                                {hasB && hasL && !hasBL && <div className="absolute" style={{ top: '84%', bottom: 0, left: 0, right: '84%', background: `radial-gradient(circle at bottom left, transparent 6px, ${zColor} 6px)` }} />}
+                                                                                {hasB && hasR && !hasBR && <div className="absolute" style={{ top: '84%', bottom: 0, left: '84%', right: 0, background: `radial-gradient(circle at bottom right, transparent 6px, ${zColor} 6px)` }} />}
+                                                                            </div>
                                                                         </div>
                                                                     );
                                                                 })()}
@@ -1095,11 +1182,12 @@
     </script>
 
     <script>
+        // Ce script permet d'utiliser le Service Worker uniquement sur la vraie adresse en ligne
         if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('Service Worker enregistré !', reg))
-                    .catch(err => console.error('Erreur Service Worker :', err));
+                    .then(reg => console.log('Service Worker OK', reg))
+                    .catch(err => console.error('Service Worker erreur', err));
             });
         }
     </script>
