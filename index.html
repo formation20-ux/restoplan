@@ -19,10 +19,10 @@
     
     <meta name="theme-color" content="#2d2822">
 
-    <!-- Police Inter pour avoir le même rendu que "Contrôle Nettoyage" -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Police Inter pour un rendu premium identique à l'autre app -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+    </style>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -84,7 +84,8 @@
             PAN: { id: 'pan', name: 'Déplacer', icon: 'fas fa-hand', color: 'bg-transparent' },
             WALL: { id: 'wall', name: 'Mur', icon: 'fas fa-square', color: 'bg-stone-600' },
             TRASH: { id: 'trash', name: 'Poubelle', icon: 'fas fa-trash-alt', color: 'bg-[#5c4f42]' },
-            TABLE: { id: 'table', name: 'Table', icon: 'fas fa-circle', color: 'bg-[#c17a23]' },
+            TABLE: { id: 'table', name: 'Table', icon: 'fas fa-square', color: 'bg-[#c17a23]' },
+            STANDUP: { id: 'standup', name: 'Stand-up', icon: 'fas fa-grip-lines', color: 'bg-[#785640]' },
             DOOR: { id: 'door', name: 'Porte', icon: 'fas fa-door-open', color: 'bg-stone-400' },
             CHAIR: { id: 'chair', name: 'Chaise', icon: 'fas fa-chair', color: 'bg-transparent' },
             STOOL: { id: 'stool', name: 'Tabouret', icon: 'fas fa-circle-dot', color: 'bg-transparent' },
@@ -119,6 +120,11 @@
             const [selectedZoneId, setSelectedZoneId] = useState('z1');
             const [activeTableId, setActiveTableId] = useState('101'); 
             const [isRoundTable, setIsRoundTable] = useState(false);
+            
+            // Nouveaux états pour le Stand-up
+            const [activeStandupId, setActiveStandupId] = useState('S1');
+            const [activeStandupTableId, setActiveStandupTableId] = useState('');
+            
             const [activeStairId, setActiveStairId] = useState('A'); 
             const [activeKioskId, setActiveKioskId] = useState('1');
             const [kioskOrientation, setKioskOrientation] = useState('N');
@@ -166,9 +172,10 @@
                             const rows = floor.rows || layout.rows || 15;
                             const rw = rotation === 90 || rotation === 270 ? rows : cols;
                             const rh = rotation === 90 || rotation === 270 ? cols : rows;
+                            // On diminue le scale à 0.5 par défaut (au lieu de 0.95)
                             const scaleX = clientWidth / (rw * 40);
                             const scaleY = clientHeight / (rh * 40);
-                            setBaseScale(Math.min(scaleX, scaleY) * 0.95);
+                            setBaseScale(Math.min(scaleX, scaleY) * 0.5); 
                         }
                     }
                 };
@@ -376,20 +383,24 @@
                         }
                         newLayout.cells[cellKey] = { ...currentCell, type: 'start' };
                         newLayout.startPos = { floorId, x, y };
+                    } else if (currentTool === 'standup') {
+                        // Outil Stand-up : on attribue l'ID de fusion (standupId) et le numéro de table affiché
+                        if (currentCell.type === 'start') newLayout.startPos = null;
+                        newLayout.cells[cellKey] = { ...currentCell, type: 'standup', standupId: activeStandupId.toUpperCase(), tableId: activeStandupTableId.toUpperCase() || null, isRound: false, stairId: null, orientation: null, benchId: null };
                     } else if (currentTool === 'table') {
                         if (!checkAdjacency(x, y, floorId, 'table', 'tableId', activeTableId.toUpperCase(), newLayout)) {
                             if (!isDrag) setDrawError(`Action annulée : La table ${activeTableId.toUpperCase()} doit être connectée à ses autres parties.`);
                             return prevLayout;
                         }
                         if (currentCell.type === 'start') newLayout.startPos = null;
-                        newLayout.cells[cellKey] = { ...currentCell, type: 'table', tableId: activeTableId.toUpperCase(), isRound: isRoundTable, stairId: null, orientation: null };
+                        newLayout.cells[cellKey] = { ...currentCell, type: 'table', tableId: activeTableId.toUpperCase(), standupId: null, isRound: isRoundTable, stairId: null, orientation: null };
                     } else if (currentTool === 'stairs') {
                         if (!checkAdjacency(x, y, floorId, 'stairs', 'stairId', activeStairId.toUpperCase(), newLayout)) {
                             if (!isDrag) setDrawError(`Action annulée : L'escalier ${activeStairId.toUpperCase()} doit être connecté à ses autres parties.`);
                             return prevLayout;
                         }
                         if (currentCell.type === 'start') newLayout.startPos = null;
-                        newLayout.cells[cellKey] = { ...currentCell, type: 'stairs', stairId: activeStairId.toUpperCase(), tableId: null, orientation: null, benchId: null };
+                        newLayout.cells[cellKey] = { ...currentCell, type: 'stairs', stairId: activeStairId.toUpperCase(), tableId: null, standupId: null, orientation: null, benchId: null };
                     } else if (currentTool === 'bench') {
                         if (isDrag) return prevLayout;
                         
@@ -401,13 +412,12 @@
                         if (prevLayout.cells[`${floorId}:${x+1}:${y}`]?.benchId) adj.push({ dir: 'Droite', id: prevLayout.cells[`${floorId}:${x+1}:${y}`].benchId });
                         
                         if (adj.length > 0) {
-                            // Supprimer les doublons d'ID (cas en U)
                             const uniqueAdj = Array.from(new Map(adj.map(item => [item.id, item])).values());
                             setBenchMergePrompt({ x, y, floorId, options: uniqueAdj });
                             return prevLayout;
                         } else {
                             if (currentCell.type === 'start') newLayout.startPos = null;
-                            newLayout.cells[cellKey] = { ...currentCell, type: 'bench', benchId: Date.now().toString(), tableId: null, stairId: null, orientation: null };
+                            newLayout.cells[cellKey] = { ...currentCell, type: 'bench', benchId: Date.now().toString(), tableId: null, standupId: null, stairId: null, orientation: null };
                         }
                     } else if (currentTool === 'kiosk') {
                         if (isDrag) return prevLayout; 
@@ -418,14 +428,14 @@
                             }
                         }
                         if (currentCell.type === 'start') newLayout.startPos = null;
-                        newLayout.cells[cellKey] = { ...currentCell, type: 'kiosk', kioskId: activeKioskId.toUpperCase(), orientation: kioskOrientation, tableId: null, stairId: null, benchId: null };
+                        newLayout.cells[cellKey] = { ...currentCell, type: 'kiosk', kioskId: activeKioskId.toUpperCase(), orientation: kioskOrientation, tableId: null, standupId: null, stairId: null, benchId: null };
                     } else {
                         if (currentCell.type === 'start') newLayout.startPos = null;
-                        newLayout.cells[cellKey] = { ...currentCell, type: currentTool, tableId: null, stairId: null, orientation: null, benchId: null };
+                        newLayout.cells[cellKey] = { ...currentCell, type: currentTool, tableId: null, standupId: null, stairId: null, orientation: null, benchId: null };
                     }
                     saveLayout(newLayout); return newLayout;
                 });
-            }, [mode, currentTool, selectedZoneId, activeTableId, isRoundTable, activeStairId, activeKioskId, kioskOrientation, saveLayout, checkAdjacency]);
+            }, [mode, currentTool, selectedZoneId, activeTableId, activeStandupId, activeStandupTableId, isRoundTable, activeStairId, activeKioskId, kioskOrientation, saveLayout, checkAdjacency]);
 
             const handleGlobalPointerUp = () => {
                 if (isDrawing && (currentTool === 'zone' || currentTool === 'eraser') && dragStart && dragCurrent) {
@@ -520,7 +530,7 @@
 
                 let targetPositions = [];
                 for (const [key, cell] of Object.entries(layout.cells)) {
-                    if (cell.type === 'table' && cell.tableId === targetNum) {
+                    if ((cell.type === 'table' || cell.type === 'standup') && cell.tableId === targetNum) {
                         const [floorId, x, y] = key.split(':'); targetPositions.push({ floorId, x: parseInt(x), y: parseInt(y) });
                     }
                 }
@@ -619,7 +629,7 @@
                     if (fId !== currentFloorId) return;
                     const x = parseInt(xStr), y = parseInt(yStr);
 
-                    if (cell.type === 'table' && cell.tableId) {
+                    if ((cell.type === 'table' || cell.type === 'standup') && cell.tableId) {
                         if(!tables[cell.tableId]) tables[cell.tableId] = { minX: x, maxX: x, minY: y, maxY: y };
                         else {
                             tables[cell.tableId].minX = Math.min(tables[cell.tableId].minX, x); tables[cell.tableId].maxX = Math.max(tables[cell.tableId].maxX, x);
@@ -648,7 +658,7 @@
                     Object.entries(layout.cells).forEach(([k, c]) => {
                         const [f, xStr, yStr] = k.split(':');
                         if (f === currentFloorId) {
-                            if (c.type && ['wall', 'stairs', 'table', 'chair', 'stool', 'bench', 'kiosk'].includes(c.type)) obstacles.add(`${parseInt(xStr)}:${parseInt(yStr)}`);
+                            if (c.type && ['wall', 'stairs', 'table', 'standup', 'chair', 'stool', 'bench', 'kiosk'].includes(c.type)) obstacles.add(`${parseInt(xStr)}:${parseInt(yStr)}`);
                             if (c.zoneId) zoneCellsMap.set(`${parseInt(xStr)}:${parseInt(yStr)}`, c.zoneId);
                         }
                     });
@@ -683,7 +693,6 @@
                             if (c.y > maxY) maxY = c.y;
                         });
 
-                        // Limiter la largeur du texte pour qu'elle ne dépasse pas les dimensions réelles de la zone
                         zonesLabels.push({ id, name: zData.name, color: zData.color, x: bestCell.x, y: bestCell.y, radius: maxDist, size: cells.length, w: (maxX - minX + 1), h: (maxY - minY + 1) });
                     }
                     return zonesLabels;
@@ -835,11 +844,10 @@
                                             <div className="absolute inset-0 pointer-events-none z-[5]">
                                                 {floorGroups.zones.map(z => {
                                                     const fontSizePx = Math.max(12, Math.min(22, z.radius * 6 + 10));
-                                                    // FIX : Largeur maximale fixée à la taille réelle de la zone (z.w * 40) pour éviter le débordement
                                                     return (
                                                         <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(1 / floorCols) * 100}%`, height: `${(1 / floorRows) * 100}%` }}>
-                                                            <div className="absolute top-1/2 left-1/2 flex items-center justify-center transition-transform duration-300 w-full" style={{ transform: `translate(-50%, -50%) rotate(${-rotation}deg)` }}>
-                                                                <span className="font-black uppercase text-center leading-[1.1] opacity-95" style={{ color: z.color, fontSize: `${fontSizePx}px`, maxWidth: `${z.w * 40 * 0.95}px`, textWrap: 'balance', wordWrap: 'break-word', letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)' }}>{z.name}</span>
+                                                            <div className="absolute top-1/2 left-1/2 flex items-center justify-center transition-transform duration-300" style={{ transform: `translate(-50%, -50%) rotate(${-rotation}deg)`, width: `${z.w * 40 * 0.95}px` }}>
+                                                                <span className="font-black uppercase text-center leading-[1.1] opacity-95" style={{ color: z.color, fontSize: `${fontSizePx}px`, textWrap: 'balance', wordWrap: 'break-word', letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)' }}>{z.name}</span>
                                                             </div>
                                                         </div>
                                                     );
@@ -856,8 +864,8 @@
                                                         const leftCell = layout.cells[`${currentFloorId}:${x-1}:${y}`];
                                                         const topCell = layout.cells[`${currentFloorId}:${x}:${y-1}`];
                                                         
-                                                        const mergeRight = cellData && rightCell && cellData.type === rightCell.type && (cellData.type === 'wall' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === rightCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === rightCell.stairId));
-                                                        const mergeBottom = cellData && bottomCell && cellData.type === bottomCell.type && (cellData.type === 'wall' || (cellData.type === 'table' && cellData.tableId && cellData.tableId === bottomCell.tableId) || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === bottomCell.stairId));
+                                                        const mergeRight = cellData && rightCell && cellData.type === rightCell.type && (cellData.type === 'wall' || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === rightCell.stairId));
+                                                        const mergeBottom = cellData && bottomCell && cellData.type === bottomCell.type && (cellData.type === 'wall' || (cellData.type === 'stairs' && cellData.stairId && cellData.stairId === bottomCell.stairId));
                                                         const isPath = path.some(p => p.floorId === currentFloorId && p.x === x && p.y === y);
                                                         const zColor = cellData?.zoneId ? layout.zones.find(z => z.id === cellData.zoneId)?.color : null;
 
@@ -868,11 +876,11 @@
                                                                     let bgColorClass = TOOLS[cellData.type.toUpperCase()]?.color;
                                                                     let bgStyle = { top: 0, left: 0, right: mergeRight ? '-1.5px' : '0', bottom: mergeBottom ? '-1.5px' : '0' };
                                                                     
-                                                                    if (cellData.type === 'table') { 
-                                                                        const isSame = (c) => c?.type === 'table' && c.tableId === cellData.tableId;
+                                                                    if (cellData.type === 'table' || cellData.type === 'standup') { 
+                                                                        const isSame = (c) => c?.type === cellData.type && (cellData.type === 'table' ? c.tableId === cellData.tableId : c.standupId === cellData.standupId);
                                                                         const rT = isSame(topCell), rB = isSame(bottomCell), rL = isSame(leftCell), rR = isSame(rightCell);
                                                                         
-                                                                        // Marge pour réduire la taille de la table, ou déborder (-1px) pour cacher les traits si fusion
+                                                                        // On recule la table de 3px du bord, MAIS si fusion, on déborde un peu (-1px) pour couvrir l'espace de la grille sans aucun trait visible
                                                                         bgStyle.top = rT ? '-1px' : '3px';
                                                                         bgStyle.bottom = rB ? '-1px' : '3px';
                                                                         bgStyle.left = rL ? '-1px' : '3px';
@@ -884,7 +892,7 @@
                                                                         if (rL) { bgStyle.borderTopLeftRadius = '0'; bgStyle.borderBottomLeftRadius = '0'; }
                                                                         if (rR) { bgStyle.borderTopRightRadius = '0'; bgStyle.borderBottomRightRadius = '0'; }
                                                                         
-                                                                        if (cellData.isRound) {
+                                                                        if (cellData.type === 'table' && cellData.isRound) {
                                                                             if (!rT && !rB && !rL && !rR) { bgStyle.borderRadius = '50%'; } 
                                                                             else {
                                                                                 bgStyle.borderTopLeftRadius = (!rT && !rL) ? '100%' : '0'; bgStyle.borderTopRightRadius = (!rT && !rR) ? '100%' : '0';
@@ -892,11 +900,14 @@
                                                                             }
                                                                         }
                                                                         
-                                                                        if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = 'brightness(0.85)'; } 
+                                                                        if (cellData.type === 'standup') {
+                                                                            bgColorClass = 'bg-[#785640]';
+                                                                        }
+                                                                        if (zColor) { bgColorClass = ''; bgStyle.backgroundColor = zColor; bgStyle.filter = cellData.type === 'standup' ? 'brightness(0.65)' : 'brightness(0.85)'; } 
                                                                         bgStyle.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.15)';
                                                                     } 
                                                                     else if (['chair', 'stool'].includes(cellData.type)) {
-                                                                        // Chaises et Tabourets : Fond de la case totalement transparent
+                                                                        // Chaises et Tabourets : Fond transparent
                                                                         bgColorClass = 'bg-transparent'; bgStyle.backgroundColor = 'transparent'; bgStyle.boxShadow = 'none';
                                                                     }
                                                                     else {
@@ -908,7 +919,6 @@
                                                                         <div className={`absolute z-10 ${bgColorClass}`} style={bgStyle}>
                                                                             {cellData.type === 'chair' && (
                                                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                                    {/* L'assombrissement (brightness) ne s'applique que sur le dessin de la chaise, pas sur la case */}
                                                                                     <div className="w-[60%] h-[60%] rounded shadow-sm border border-black/20"
                                                                                          style={{ backgroundColor: zColor || '#a59a8c', filter: zColor ? 'brightness(0.85)' : 'none' }}></div>
                                                                                 </div>
@@ -936,13 +946,13 @@
                                                                     const playColor = '#14b8a6';
                                                                     return (
                                                                         <div className="absolute pointer-events-none z-10" style={{
-                                                                            backgroundColor: 'rgba(20, 184, 166, 0.25)',
-                                                                            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 2px, transparent 2px)',
+                                                                            backgroundColor: 'rgba(20, 184, 166, 0.45)', // Plus opaque, effet "tapis mousse"
+                                                                            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 2px, transparent 2px)',
                                                                             backgroundSize: '12px 12px',
-                                                                            borderTop: hasT ? 'none' : `2.5px solid ${playColor}`,
-                                                                            borderBottom: hasB ? 'none' : `2.5px solid ${playColor}`,
-                                                                            borderLeft: hasL ? 'none' : `2.5px solid ${playColor}`,
-                                                                            borderRight: hasR ? 'none' : `2.5px solid ${playColor}`,
+                                                                            borderTop: hasT ? 'none' : `3px dashed ${playColor}`,
+                                                                            borderBottom: hasB ? 'none' : `3px dashed ${playColor}`,
+                                                                            borderLeft: hasL ? 'none' : `3px dashed ${playColor}`,
+                                                                            borderRight: hasR ? 'none' : `3px dashed ${playColor}`,
                                                                             borderTopLeftRadius: (!hasT && !hasL) ? '12px' : '0',
                                                                             borderTopRightRadius: (!hasT && !hasR) ? '12px' : '0',
                                                                             borderBottomLeftRadius: (!hasB && !hasL) ? '12px' : '0',
@@ -951,9 +961,9 @@
                                                                             bottom: hasB ? '-1px' : '2px',
                                                                             left: hasL ? '-1px' : '2px',
                                                                             right: hasR ? '-1px' : '2px',
-                                                                            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
+                                                                            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
                                                                         }}>
-                                                                            {!hasT && !hasB && !hasL && !hasR && <div className="w-full h-full flex items-center justify-center"><i className="fas fa-shapes" style={{color: playColor, opacity: 0.9, fontSize: 18}}></i></div>}
+                                                                            {!hasT && !hasB && !hasL && !hasR && <div className="w-full h-full flex items-center justify-center"><i className="fas fa-shapes" style={{color: '#fff', opacity: 0.9, fontSize: 18}}></i></div>}
                                                                         </div>
                                                                     );
                                                                 })()}
@@ -1071,6 +1081,18 @@
                                     <label className="flex items-center justify-center gap-2 text-sm font-bold text-[#c17a23] cursor-pointer bg-white p-2 border border-[#d6cfc2] rounded-lg shadow-sm hover:bg-gray-50"><input type="checkbox" checked={isRoundTable} onChange={e => setIsRoundTable(e.target.checked)} className="w-4 h-4 rounded text-[#c17a23] focus:ring-[#c17a23]" />Table Ronde (Individuelle ou Fusion)</label>
                                     </div>
                                 )}
+
+                                {currentTool === 'standup' && (
+                                    <div className="p-4 bg-orange-50 border border-orange-900/20 rounded-xl">
+                                        <div className="text-xs text-orange-800/80 mb-3 font-semibold italic text-center">Toutes les cases dessinées avec le même "ID de bloc" fusionneront.</div>
+                                        <label className="block text-sm font-bold text-stone-700 mb-2">ID du bloc (Fusion) :</label>
+                                        <input type="text" maxLength={4} value={activeStandupId} onChange={e => setActiveStandupId(e.target.value.toUpperCase())} className="w-full p-2 rounded border border-stone-300 font-bold text-center text-lg outline-none focus:border-stone-500 mb-3" placeholder="Ex: S1" />
+                                        
+                                        <label className="block text-sm font-bold text-stone-700 mb-2">Numéro (Extrémité) :</label>
+                                        <input type="text" maxLength={3} value={activeStandupTableId} onChange={e => setActiveStandupTableId(e.target.value.toUpperCase())} className="w-full p-2 rounded border border-stone-300 font-bold text-center text-lg outline-none focus:border-stone-500" placeholder="Ex: 50 (Laisser vide au centre)" />
+                                    </div>
+                                )}
+
                                 {currentTool === 'stairs' && (
                                     <div className="p-4 bg-stone-100 border border-stone-400 rounded-xl">
                                     <label className="block text-sm font-bold text-stone-700 mb-2">ID d'escalier (Liaison) :</label>
@@ -1210,12 +1232,9 @@
     </script>
 
     <script>
-        // Ce script permet d'utiliser le Service Worker uniquement sur la vraie adresse en ligne
-        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
+        if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('Service Worker OK', reg))
-                    .catch(err => console.error('Service Worker erreur', err));
+                navigator.serviceWorker.register('./service-worker.js').catch(err => console.error(err));
             });
         }
     </script>
