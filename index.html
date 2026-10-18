@@ -645,10 +645,10 @@
 
                                             <div className="absolute inset-0 pointer-events-none z-[5]">
                                                 {floorGroups.zones.map(z => {
-                                                    const fontSizePx = Math.max(12, Math.min(22, z.radius * 4 + 8));
+                                                    const fontSizePx = Math.max(12, Math.min(35, (z.w + z.h) * 1.5 + 8));
                                                     return (
-                                                        <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible flex items-center justify-center" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(1 / floorCols) * 100}%`, height: `${(1 / floorRows) * 100}%` }}>
-                                                            <div className="flex items-center justify-center transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)`, width: `${z.w * 40 * 0.9}px` }}>
+                                                        <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible flex items-center justify-center" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(z.w / floorCols) * 100}%`, height: `${(z.h / floorRows) * 100}%` }}>
+                                                            <div className="flex items-center justify-center transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)`, width: '90%' }}>
                                                                 <span className="font-black uppercase text-center leading-[1.1] opacity-95" style={{ color: z.color, fontSize: `${fontSizePx}px`, textWrap: 'balance', wordWrap: 'break-word', letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)' }}>{z.name}</span>
                                                             </div>
                                                         </div>
