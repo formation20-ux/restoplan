@@ -489,7 +489,6 @@
 
                 const formatGroup = (dict) => Object.entries(dict).map(([id, data]) => ({ id, minX: data.minX, minY: data.minY, w: data.maxX - data.minX + 1, h: data.maxY - data.minY + 1 }));
 
-                // Algorithme pour regrouper les vitrines HM qui se touchent
                 const vitrines = [];
                 const visitedVitrines = new Set();
                 vitrinesRaw.forEach(v => {
@@ -521,30 +520,46 @@
                     Object.entries(layout.cells).forEach(([k, c]) => {
                         const [f, xStr, yStr] = k.split(':');
                         if (f === currentFloorId) {
-                            if (c.type && ['wall', 'stairs', 'table', 'standup', 'chair', 'stool', 'bench', 'kiosk', 'comptoir', 'vitrine', 'persienne'].includes(c.type)) obstacles.add(`${parseInt(xStr)}:${parseInt(yStr)}`);
+                            if (c.type && ['wall', 'stairs', 'table', 'standup', 'comptoir', 'vitrine', 'persienne'].includes(c.type)) obstacles.add(`${parseInt(xStr)}:${parseInt(yStr)}`);
                             if (c.zoneId) zoneCellsMap.set(`${parseInt(xStr)}:${parseInt(yStr)}`, c.zoneId);
                         }
                     });
 
                     for (const [id, cells] of Object.entries(zonesCells)) {
                         const zData = layout.zones.find(z => z.id === id); if (!zData) continue;
-                        let bestCell = cells[0], maxDist = -1;
+                        let bestCell = cells[0];
+                        let maxRadius = 0;
+
                         for (const c of cells) {
-                            let minDist = Math.min(c.x + 1, floorCols - c.x, c.y + 1, floorRows - c.y);
-                            for (let y = 0; y < floorRows; y++) {
-                                for (let x = 0; x < floorCols; x++) {
-                                    if (obstacles.has(`${x}:${y}`) || zoneCellsMap.get(`${x}:${y}`) !== id) { const d = Math.sqrt(Math.pow(c.x - x, 2) + Math.pow(c.y - y, 2)); if (d < minDist) minDist = d; }
+                            let radius = 0;
+                            let hitObstacle = false;
+                            while (!hitObstacle) {
+                                radius++;
+                                for (let dr = -radius; dr <= radius; dr++) {
+                                    for (let dc = -radius; dc <= radius; dc++) {
+                                        if (Math.abs(dr) === radius || Math.abs(dc) === radius) {
+                                            const nx = c.x + dc;
+                                            const ny = c.y + dr;
+                                            if (nx < 0 || nx >= floorCols || ny < 0 || ny >= floorRows || zoneCellsMap.get(`${nx}:${ny}`) !== id) {
+                                                hitObstacle = true;
+                                            } else {
+                                                if (obstacles.has(`${nx}:${ny}`)) {
+                                                    hitObstacle = true;
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            if (minDist > maxDist) { maxDist = minDist; bestCell = c; } 
-                            else if (minDist === maxDist) {
-                                const cx = cells.reduce((sum, cl) => sum + cl.x, 0) / cells.length, cy = cells.reduce((sum, cl) => sum + cl.y, 0) / cells.length;
-                                if ((Math.pow(c.x - cx, 2) + Math.pow(c.y - cy, 2)) < (Math.pow(bestCell.x - cx, 2) + Math.pow(bestCell.y - cy, 2))) bestCell = c;
+                            if (radius > maxRadius) {
+                                maxRadius = radius;
+                                bestCell = c;
                             }
                         }
+                        
                         let minX = floorCols, maxX = 0, minY = floorRows, maxY = 0;
                         cells.forEach(c => { if (c.x < minX) minX = c.x; if (c.x > maxX) maxX = c.x; if (c.y < minY) minY = c.y; if (c.y > maxY) maxY = c.y; });
-                        zonesLabels.push({ id, name: zData.name, color: zData.color, x: bestCell.x, y: bestCell.y, radius: maxDist, size: cells.length, w: (maxX - minX + 1), h: (maxY - minY + 1) });
+                        zonesLabels.push({ id, name: zData.name, color: zData.color, x: bestCell.x, y: bestCell.y, maxRadius: maxRadius, size: cells.length, w: (maxX - minX + 1), h: (maxY - minY + 1) });
                     }
                     return zonesLabels;
                 };
@@ -645,11 +660,16 @@
 
                                             <div className="absolute inset-0 pointer-events-none z-[5]">
                                                 {floorGroups.zones.map(z => {
-                                                    const fontSizePx = Math.max(12, Math.min(35, (z.w + z.h) * 1.5 + 8));
+                                                    const safeDiameterPx = (z.maxRadius * 2 - 1) * 40;
+                                                    const words = z.name.split(' ');
+                                                    const longestWordLength = Math.max(...words.map(w => w.length));
+                                                    const calculatedFontSize = safeDiameterPx / (longestWordLength * 0.65);
+                                                    const fontSizePx = Math.min(24, Math.max(9, calculatedFontSize));
+
                                                     return (
-                                                        <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible flex items-center justify-center" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(z.w / floorCols) * 100}%`, height: `${(z.h / floorRows) * 100}%` }}>
-                                                            <div className="flex items-center justify-center transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)`, width: '90%' }}>
-                                                                <span className="font-black uppercase text-center leading-[1.1] opacity-95" style={{ color: z.color, fontSize: `${fontSizePx}px`, textWrap: 'balance', wordWrap: 'break-word', letterSpacing: '0.05em', textShadow: '0 0 8px rgba(249,248,244,1), 0 0 15px rgba(249,248,244,1), 0 0 4px rgba(249,248,244,1)' }}>{z.name}</span>
+                                                        <div key={`z-${z.id}`} className="absolute pointer-events-none overflow-visible flex items-center justify-center" style={{ left: `${(z.x / floorCols) * 100}%`, top: `${(z.y / floorRows) * 100}%`, width: `${(1 / floorCols) * 100}%`, height: `${(1 / floorRows) * 100}%` }}>
+                                                            <div className="flex items-center justify-center transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}>
+                                                                <span className="font-black uppercase text-center leading-[1.1] opacity-95" style={{ color: z.color, fontSize: `${fontSizePx}px`, maxWidth: `${safeDiameterPx * 0.9}px`, wordBreak: 'normal', letterSpacing: '0.05em', filter: 'brightness(0.7) drop-shadow(0px 1px 2px rgba(255,255,255,0.9))', WebkitTextStroke: '2px white' }}>{z.name}</span>
                                                             </div>
                                                         </div>
                                                     );
@@ -677,7 +697,7 @@
                                                                 {cellData?.type === 'comptoir' && (() => {
                                                                     const rT = topCell?.type === 'comptoir', rB = bottomCell?.type === 'comptoir', rL = leftCell?.type === 'comptoir', rR = rightCell?.type === 'comptoir';
                                                                     let cStyle = { position: 'absolute', backgroundColor: '#d4d4d8', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)', backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%, transparent)' };
-                                                                    cStyle.top = rT ? '-1px' : '0'; cStyle.bottom = rB ? '-1px' : '0'; cStyle.left = rL ? '-1px' : '0'; cStyle.right = rR ? '-1px' : '0';
+                                                                    cStyle.top = rT ? '-1px' : '0px'; cStyle.bottom = rB ? '-1px' : '0px'; cStyle.left = rL ? '-1px' : '0px'; cStyle.right = rR ? '-1px' : '0px';
                                                                     if (rT) cStyle.borderTop = 'none'; if (rB) cStyle.borderBottom = 'none'; if (rL) cStyle.borderLeft = 'none'; if (rR) cStyle.borderRight = 'none';
                                                                     return <div className="z-10 pointer-events-none" style={cStyle}></div>;
                                                                 })()}
@@ -701,7 +721,7 @@
                                                                 {cellData?.type === 'vitrine' && (() => {
                                                                     const rT = topCell?.type === 'vitrine', rB = bottomCell?.type === 'vitrine', rL = leftCell?.type === 'vitrine', rR = rightCell?.type === 'vitrine';
                                                                     let vStyle = { position: 'absolute', backgroundColor: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-                                                                    vStyle.top = rT ? '-1px' : '0'; vStyle.bottom = rB ? '-1px' : '0'; vStyle.left = rL ? '-1px' : '0'; vStyle.right = rR ? '-1px' : '0';
+                                                                    vStyle.top = rT ? '-1px' : '0px'; vStyle.bottom = rB ? '-1px' : '0px'; vStyle.left = rL ? '-1px' : '0px'; vStyle.right = rR ? '-1px' : '0px';
                                                                     if (!rT && !rL) vStyle.borderTopLeftRadius = '4px'; if (!rT && !rR) vStyle.borderTopRightRadius = '4px'; if (!rB && !rL) vStyle.borderBottomLeftRadius = '4px'; if (!rB && !rR) vStyle.borderBottomRightRadius = '4px';
                                                                     if (cellData.orientation === 'N') vStyle.borderTop = '4px solid #bae6fd'; if (cellData.orientation === 'S') vStyle.borderBottom = '4px solid #bae6fd'; if (cellData.orientation === 'E') vStyle.borderRight = '4px solid #bae6fd'; if (cellData.orientation === 'W') vStyle.borderLeft = '4px solid #bae6fd';
                                                                     return <div className="z-10 pointer-events-none" style={vStyle}></div>;
@@ -716,7 +736,7 @@
                                                                 {(cellData?.type === 'table' || cellData?.type === 'standup') && (() => {
                                                                     const isSame = (c) => c?.type === cellData.type && (cellData.type === 'table' ? c.tableId === cellData.tableId : c.standupId === cellData.standupId);
                                                                     const rT = isSame(topCell), rB = isSame(bottomCell), rL = isSame(leftCell), rR = isSame(rightCell);
-                                                                    let bgStyle = { position: 'absolute', top: rT ? '-1px' : '1px', bottom: rB ? '-1px' : '1px', left: rL ? '-1px' : '1px', right: rR ? '-1px' : '1px', borderRadius: '6px', backgroundColor: zColor || (cellData.type === 'standup' ? '#785640' : '#c17a23') };
+                                                                    let bgStyle = { position: 'absolute', top: rT ? '-1px' : '0px', bottom: rB ? '-1px' : '0px', left: rL ? '-1px' : '0px', right: rR ? '-1px' : '0px', borderRadius: '6px', backgroundColor: zColor || (cellData.type === 'standup' ? '#785640' : '#c17a23') };
                                                                     bgStyle.filter = cellData.type === 'standup' ? 'brightness(0.65)' : 'brightness(0.85)';
                                                                     if (rT) { bgStyle.borderTopLeftRadius = '0'; bgStyle.borderTopRightRadius = '0'; }
                                                                     if (rB) { bgStyle.borderBottomLeftRadius = '0'; bgStyle.borderBottomRightRadius = '0'; }
@@ -801,7 +821,7 @@
                                                     return (<div key={`t-${t.id}`} className={`absolute flex items-center justify-center transition-all ${isTarget ? 'ring-4 ring-blue-500 shadow-2xl bg-blue-500/30' : ''}`} style={{ left: `${(t.minX / floorCols) * 100}%`, top: `${(t.minY / floorRows) * 100}%`, width: `${(t.w / floorCols) * 100}%`, height: `${(t.h / floorRows) * 100}%` }}><svg viewBox="0 0 100 100" className="w-full h-full max-w-[70%] max-h-[70%] overflow-visible transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}><text x="50" y="50" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="900" fontSize="35" className="drop-shadow-md">{t.id}</text></svg></div>)
                                                 })}
                                                 {floorGroups.stairs.map(s => (<div key={`s-${s.id}`} className="absolute flex items-center justify-center" style={{ left: `${(s.minX / floorCols) * 100}%`, top: `${(s.minY / floorRows) * 100}%`, width: `${(s.w / floorCols) * 100}%`, height: `${(s.h / floorRows) * 100}%` }}><svg viewBox="0 0 100 100" className="w-full h-full max-w-[60%] max-h-[60%] overflow-visible opacity-90 transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}><path d="M20,70 L45,70 L45,50 L70,50 L70,30" fill="none" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="80" cy="20" r="4" fill="white" /><text x="50" y="50" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="900" fontSize="25" transform="translate(-15, -15)">{s.id}</text></svg></div>))}
-                                                {floorGroups.vitrines.map((v, i) => (<div key={`v-${i}`} className="absolute flex items-center justify-center" style={{ left: `${(v.x / floorCols) * 100}%`, top: `${(v.y / floorRows) * 100}%`, width: `${(v.w / floorCols) * 100}%`, height: `${(v.h / floorRows) * 100}%` }}><span className="text-[12px] text-white font-bold drop-shadow-md transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}>HM</span></div>))}
+                                                {floorGroups.vitrines.map((v, i) => (<div key={`v-${i}`} className="absolute flex items-center justify-center z-20 pointer-events-none" style={{ left: `${(v.x / floorCols) * 100}%`, top: `${(v.y / floorRows) * 100}%`, width: `${(v.w / floorCols) * 100}%`, height: `${(v.h / floorRows) * 100}%` }}><span className="text-[14px] text-white font-black drop-shadow-md transition-transform duration-300" style={{ transform: `rotate(${-rotation}deg)` }}>HM</span></div>))}
                                             </div>
 
                                         </div>
