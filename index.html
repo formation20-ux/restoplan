@@ -327,6 +327,7 @@
                         newLayout.cells[cellKey] = { ...currentCell, type: 'persienne', orientation: persienneOrientation };
                     } else {
                         if (currentCell.type === 'start') newLayout.startPos = null;
+                        newLayout.cells[cellKey] = { ...currentCell, type: 'currentTool', tableId: null, standupId: null, stairId: null, benchId: null };
                         newLayout.cells[cellKey] = { ...currentCell, type: currentTool, tableId: null, standupId: null, stairId: null, benchId: null };
                     }
                     saveLayout(newLayout); return newLayout;
@@ -577,23 +578,25 @@
                         </div>
                     )}
 
-                    <header className="px-4 py-3 sm:px-8 sm:py-6 flex-shrink-0 z-10 bg-[#f9f8f4]">
-                        <div className="flex justify-between items-center mb-2 sm:mb-4">
-                            <div className="flex items-center gap-3">
-                                <img src="./icon.png" alt="Logo" className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl shadow-sm object-cover" onError={(e) => e.target.style.display='none'} />
-                                <h1 className="text-xl sm:text-4xl font-bold tracking-tight">DigiSAT · Salle</h1>
+                    {/* EN-TÊTE OPTIMISÉ */}
+                    <header className="px-3 py-2 md:px-4 md:py-3 flex-shrink-0 z-10 bg-[#f9f8f4]">
+                        <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                                <img src="./icon.png" alt="Logo" className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl shadow-sm object-cover" onError={(e) => e.target.style.display='none'} />
+                                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight">DigiSAT · Salle</h1>
                             </div>
-                            <div className="flex items-center gap-1 sm:gap-2 bg-[#d1f4e0] text-[#0f766e] px-2 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold border border-[#a7f3d0]"><span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-[#10b981]"></span> En Ligne</div>
+                            <div className="flex items-center gap-1 sm:gap-2 bg-[#d1f4e0] text-[#0f766e] px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-bold border border-[#a7f3d0]"><span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-[#10b981]"></span> En Ligne</div>
                         </div>
-                        <div className="h-[2px] w-full bg-[#2d2822] mb-3 sm:mb-6"></div>
+                        <div className="h-[2px] w-full bg-[#2d2822] mb-2 sm:mb-3"></div>
                         <div className="flex flex-row gap-2 sm:gap-4">
-                            <button onClick={() => { setMode('edit'); resetService(); }} className={`flex-1 py-2 sm:py-4 px-2 sm:px-4 rounded-xl border font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${mode === 'edit' ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white text-[#7a7266] hover:bg-gray-50'}`}><i className="fas fa-cog hidden sm:block"></i> Paramètres du Plan</button>
-                            <button onClick={() => setMode('service')} className={`flex-1 py-2 sm:py-4 px-2 sm:px-4 rounded-xl border font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${mode === 'service' ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white text-[#7a7266] hover:bg-gray-50'}`}><i className="fas fa-location-arrow hidden sm:block"></i> Mode Service</button>
+                            <button onClick={() => { setMode('edit'); resetService(); }} className={`flex-1 py-1.5 sm:py-2.5 rounded-xl border font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${mode === 'edit' ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white text-[#7a7266] hover:bg-gray-50'}`}><i className="fas fa-cog hidden sm:block"></i> Paramètres du Plan</button>
+                            <button onClick={() => setMode('service')} className={`flex-1 py-1.5 sm:py-2.5 rounded-xl border font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${mode === 'service' ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white text-[#7a7266] hover:bg-gray-50'}`}><i className="fas fa-location-arrow hidden sm:block"></i> Mode Service</button>
                         </div>
                     </header>
 
-                    <main className="flex-1 flex flex-col lg:flex-row px-2 sm:px-8 pb-2 sm:pb-8 gap-3 sm:gap-8 overflow-hidden relative">
-                        <section className="flex-1 relative flex flex-col bg-white rounded-xl sm:rounded-2xl border border-[#e6e2da] shadow-sm overflow-hidden p-2 sm:p-6 h-[50vh] lg:h-auto">
+                    {/* CORPS PRINCIPAL OPTIMISÉ */}
+                    <main className="flex-1 flex flex-col md:flex-row px-2 md:px-4 pb-2 md:pb-4 gap-2 md:gap-4 overflow-hidden relative">
+                        <section className="flex-1 relative flex flex-col bg-white rounded-xl border border-[#e6e2da] shadow-sm overflow-hidden p-2 h-[55vh] md:h-auto">
                             
                             <div className="absolute top-2 right-2 sm:top-6 sm:right-6 z-40 flex flex-col gap-2">
                                 <div className="bg-white/90 backdrop-blur p-1.5 sm:p-2 rounded-xl border border-[#e6e2da] shadow-sm flex flex-col gap-1 sm:gap-2">
@@ -617,7 +620,8 @@
                                 onPointerDown={(e) => { if (currentTool === 'pan' || mode === 'service') { mapContainerRef.current.isDragging = true; mapContainerRef.current.startX = e.clientX + mapContainerRef.current.scrollLeft; mapContainerRef.current.startY = e.clientY + mapContainerRef.current.scrollTop; mapContainerRef.current.style.cursor = 'grabbing'; } }}
                                 onPointerMove={(e) => { if ((currentTool === 'pan' || mode === 'service') && mapContainerRef.current?.isDragging) { mapContainerRef.current.scrollLeft = mapContainerRef.current.startX - e.clientX; mapContainerRef.current.scrollTop = mapContainerRef.current.startY - e.clientY; } }}
                             >
-                                <div className="min-w-full min-h-full flex p-4 sm:p-8">
+                                {/* PADDING INTERNE RÉDUIT ICI POUR MAXIMISER LE PLAN */}
+                                <div className="min-w-full min-h-full flex p-1 md:p-3">
                                     <div className="m-auto relative transition-all duration-300" style={{ width: `${(rotation === 90 || rotation === 270 ? floorRows : floorCols) * 40 * baseScale * zoom}px`, height: `${(rotation === 90 || rotation === 270 ? floorCols : floorRows) * 40 * baseScale * zoom}px`}}>
                                         <div className={`absolute top-1/2 left-1/2 shadow-sm transition-transform duration-300 origin-center ${mode === 'edit' && currentTool !== 'pan' ? 'touch-none' : ''}`} style={{ width: `${floorCols * 40}px`, height: `${floorRows * 40}px`, transform: `translate(-50%, -50%) scale(${baseScale * zoom}) rotate(${rotation}deg)` }}>
                                             
@@ -810,13 +814,14 @@
                             </div>
                         </section>
 
+                        {/* PANNEAU LATÉRAL OPTIMISÉ */}
                         {mode === 'edit' && (
-                            <aside className="w-full lg:w-[420px] h-[45vh] lg:h-auto flex-shrink-0 flex flex-col overflow-y-auto custom-scrollbar">
-                                <div className="bg-white rounded-xl sm:rounded-2xl border border-[#e6e2da] p-3 sm:p-6 shadow-sm flex flex-col gap-4 sm:gap-6">
+                            <aside className="w-full md:w-[300px] lg:w-[380px] h-[40vh] md:h-auto flex-shrink-0 flex flex-col overflow-y-auto custom-scrollbar">
+                                <div className="bg-white rounded-xl border border-[#e6e2da] p-3 sm:p-4 shadow-sm flex flex-col gap-4">
                                 
                                 <div>
-                                    <h2 className="text-base sm:text-xl font-bold text-[#2d2822] mb-3 sm:mb-4">Outils de dessin</h2>
-                                    <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+                                    <h2 className="text-base font-bold text-[#2d2822] mb-3">Outils de dessin</h2>
+                                    <div className="grid grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                     {Object.values(TOOLS).map(tool => (
                                         <button key={tool.id} onClick={() => setCurrentTool(tool.id)} className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${currentTool === tool.id ? 'border-[#c17a23] bg-[#fffbf4] text-[#c17a23]' : 'border-[#e6e2da] bg-white hover:bg-gray-50 text-[#7a7266]'}`}>
                                         <i className={`${tool.icon} mb-1 sm:text-[18px]`}></i><span className="text-[8px] sm:text-[9px] uppercase tracking-wider font-bold text-center leading-tight">{tool.name}</span>
