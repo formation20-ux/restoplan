@@ -41,6 +41,16 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #d6cfc2; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #c17a23; }
         .inner-shadow { box-shadow: inset 0 2px 10px rgba(0,0,0,0.05); }
+
+        /* Configuration spécifique pour une impression propre (paysage, pas de menus, avec couleurs) */
+        @media print {
+            @page { size: landscape; margin: 10mm; }
+            body, html { background: white !important; height: auto !important; overflow: visible !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .print\:hidden { display: none !important; }
+            .custom-scrollbar { overflow: visible !important; }
+            #root > div { height: auto !important; overflow: visible !important; }
+        }
     </style>
 </head>
 <body class="bg-[#f9f8f4]">
@@ -558,10 +568,10 @@
                 <div className="h-[100dvh] flex flex-col bg-[#f9f8f4] text-[#2d2822] font-sans select-none overflow-hidden" 
                      onPointerUp={handleGlobalPointerUp} onPointerLeave={handleGlobalPointerUp}>
                     
-                    {drawError && (<div className="fixed top-4 sm:top-8 left-1/2 transform -translate-x-1/2 z-50 bg-red-600/95 backdrop-blur text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full shadow-lg font-bold text-sm sm:text-base animate-in fade-in slide-in-from-top-4">{drawError}</div>)}
+                    {drawError && (<div className="fixed top-4 sm:top-8 left-1/2 transform -translate-x-1/2 z-50 bg-red-600/95 backdrop-blur text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full shadow-lg font-bold text-sm sm:text-base animate-in fade-in slide-in-from-top-4 print:hidden">{drawError}</div>)}
 
                     {benchMergePrompt && (
-                        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
                             <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-xl max-w-sm w-full border border-[#e6e2da]">
                                 <h3 className="text-lg sm:text-xl font-bold text-[#2d2822] mb-2 text-center">Fusionner le banc</h3>
                                 <p className="text-[#7a7266] text-xs sm:text-sm text-center mb-4">Avec quel banc existant voulez-vous le lier ?</p>
@@ -577,8 +587,8 @@
                         </div>
                     )}
 
-                    {/* PETIT MENU FLOTTANT (Remplace l'énorme Header) */}
-                    <div className="absolute top-4 left-4 z-50 flex gap-2">
+                    {/* PETIT MENU FLOTTANT */}
+                    <div className="absolute top-4 left-4 z-50 flex gap-2 print:hidden">
                         <button onClick={() => { setMode(mode === 'edit' ? 'service' : 'edit'); resetService(); }} className="bg-white/95 backdrop-blur p-2 sm:px-4 sm:py-2 rounded-xl border border-[#e6e2da] shadow-md text-[#2d2822] hover:text-[#c17a23] transition-colors flex items-center justify-center gap-2 font-bold text-xs sm:text-sm">
                             {mode === 'edit' ? <><i className="fas fa-location-arrow text-[#c17a23]"></i> <span className="hidden sm:inline">Mode Service</span></> : <><i className="fas fa-cog text-[#7a7266]"></i> <span className="hidden sm:inline">Éditer Plan</span></>}
                         </button>
@@ -588,22 +598,28 @@
                     </div>
 
                     {/* CORPS PRINCIPAL */}
-                    <main className="flex-1 flex flex-col md:flex-row p-2 sm:p-4 gap-2 sm:gap-4 overflow-hidden relative">
-                        <section className="flex-1 relative flex flex-col bg-white rounded-xl border border-[#e6e2da] shadow-sm overflow-hidden p-1 sm:p-2 h-[55vh] md:h-auto">
+                    <main className="flex-1 flex flex-col md:flex-row p-2 sm:p-4 gap-2 sm:gap-4 overflow-hidden relative print:block print:p-0 print:overflow-visible">
+                        <section className="flex-1 relative flex flex-col bg-white rounded-xl border border-[#e6e2da] shadow-sm overflow-hidden p-1 sm:p-2 h-[55vh] md:h-auto print:border-none print:shadow-none print:overflow-visible print:p-0">
                             
-                            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 flex flex-col gap-2">
+                            {/* Sélecteur d'étage flottant (caché à l'impression) */}
+                            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 flex flex-col gap-2 print:hidden">
                                 <div className="bg-white/90 backdrop-blur p-1.5 sm:p-2 rounded-xl border border-[#e6e2da] shadow-sm flex flex-col gap-1 sm:gap-2">
                                     {sortedFloors.map(f => (<button key={f.id} onClick={() => setCurrentFloorId(f.id)} className={`w-10 h-10 sm:w-14 sm:h-12 flex items-center justify-center rounded-lg font-bold text-[10px] sm:text-sm transition-all border ${currentFloorId === f.id ? 'border-[#c17a23] bg-[#c17a23] text-white shadow-md' : 'border-[#e6e2da] bg-white text-[#7a7266]'}`}>{f.name.substring(0,3)}</button>))}
                                 </div>
                             </div>
 
-                            <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-40 flex gap-1 sm:gap-2 bg-white/90 backdrop-blur p-1.5 sm:p-2 rounded-xl border border-[#e6e2da] shadow-sm">
-                                <button onClick={() => setRotation(r => (r + 90) % 360)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold transition-colors"><i className="fas fa-rotate-right"></i></button>
+                            {/* Menu de contrôles avec bouton Imprimer (caché à l'impression) */}
+                            <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-40 flex gap-1 sm:gap-2 bg-white/90 backdrop-blur p-1.5 sm:p-2 rounded-xl border border-[#e6e2da] shadow-sm print:hidden">
+                                <button onClick={() => window.print()} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold transition-colors" title="Imprimer le plan"><i className="fas fa-print"></i></button>
+                                <div className="w-px bg-[#e6e2da] mx-0.5 sm:mx-1"></div>
+                                <button onClick={() => setRotation(r => (r + 90) % 360)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold transition-colors" title="Rotation"><i className="fas fa-rotate-right"></i></button>
                                 <div className="w-px bg-[#e6e2da] mx-0.5 sm:mx-1"></div>
                                 <button onClick={() => setZoom(z => Math.max(0.5, z - 0.2))} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold text-lg sm:text-xl transition-colors">-</button>
                                 <div className="w-12 sm:w-16 flex items-center justify-center font-bold text-[#2d2822] text-xs sm:text-sm">{Math.round(zoom * 100)}%</div>
                                 <button onClick={() => setZoom(z => Math.min(4, z + 0.2))} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-[#7a7266] bg-[#f9f8f4] hover:bg-[#e6e2da] rounded-lg font-bold text-lg sm:text-xl transition-colors">+</button>
                             </div>
+
+                            <div className="mb-2 sm:mb-4 text-[#2d2822] font-bold text-sm sm:text-xl uppercase tracking-wide">Plan - {currentFloor?.name}</div>
 
                             <div ref={mapContainerRef} 
                                 className={`w-full flex-1 overflow-auto custom-scrollbar p-0 bg-[#faf9f7] rounded-lg border border-[#e6e2da] inner-shadow relative ${mode === 'edit' && currentTool !== 'pan' ? 'touch-none' : ''}`}
@@ -634,7 +650,7 @@
                                             </div>
 
                                             {isDrawing && ['zone', 'eraser'].includes(currentTool) && dragStart && dragCurrent && (
-                                                <div className="absolute z-[4] pointer-events-none" style={{ left: `${Math.min(dragStart.x, dragCurrent.x) * 40}px`, top: `${Math.min(dragStart.y, dragCurrent.y) * 40}px`, width: `${(Math.abs(dragCurrent.x - dragStart.x) + 1) * 40}px`, height: `${(Math.abs(dragCurrent.y - dragStart.y) + 1) * 40}px`, backgroundColor: currentTool === 'zone' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)', border: `3px solid ${currentTool === 'zone' ? '#3b82f6' : '#ef4444'}`, boxShadow: '0 0 15px rgba(0,0,0,0.1)' }} />
+                                                <div className="absolute z-[4] pointer-events-none print:hidden" style={{ left: `${Math.min(dragStart.x, dragCurrent.x) * 40}px`, top: `${Math.min(dragStart.y, dragCurrent.y) * 40}px`, width: `${(Math.abs(dragCurrent.x - dragStart.x) + 1) * 40}px`, height: `${(Math.abs(dragCurrent.y - dragStart.y) + 1) * 40}px`, backgroundColor: currentTool === 'zone' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)', border: `3px solid ${currentTool === 'zone' ? '#3b82f6' : '#ef4444'}`, boxShadow: '0 0 15px rgba(0,0,0,0.1)' }} />
                                             )}
 
                                             <div className="absolute inset-0 pointer-events-none z-[5]">
@@ -804,9 +820,9 @@
                             </div>
                         </section>
 
-                        {/* MODE ÉDITION: PANNEAU DES OUTILS */}
+                        {/* MODE ÉDITION: PANNEAU DES OUTILS (caché à l'impression) */}
                         {mode === 'edit' && (
-                            <aside className="w-full md:w-[300px] lg:w-[380px] h-[40vh] md:h-auto flex-shrink-0 flex flex-col overflow-y-auto custom-scrollbar">
+                            <aside className="w-full md:w-[300px] lg:w-[380px] h-[40vh] md:h-auto flex-shrink-0 flex flex-col overflow-y-auto custom-scrollbar print:hidden">
                                 <div className="bg-white rounded-xl border border-[#e6e2da] p-3 sm:p-4 shadow-sm flex flex-col gap-4">
                                 
                                 <div>
@@ -960,9 +976,9 @@
                             </aside>
                         )}
                         
-                        {/* MODE SERVICE : LE CLAVIER INTÉGRÉ SANS MASQUER LE PLAN */}
+                        {/* MODE SERVICE : LE CLAVIER INTÉGRÉ SANS MASQUER LE PLAN (caché à l'impression) */}
                         {mode === 'service' && (
-                            <aside className="w-full md:w-[320px] h-[45vh] md:h-auto flex-shrink-0 flex flex-col bg-white rounded-xl border border-[#e6e2da] p-3 sm:p-4 shadow-sm z-10">
+                            <aside className="w-full md:w-[320px] h-[45vh] md:h-auto flex-shrink-0 flex flex-col bg-white rounded-xl border border-[#e6e2da] p-3 sm:p-4 shadow-sm z-10 print:hidden">
                                 <div className="flex flex-col h-full justify-between">
                                     <div>
                                         <h2 className="text-lg font-bold text-[#2d2822] mb-3">Où aller ?</h2>
